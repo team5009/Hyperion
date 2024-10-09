@@ -24,8 +24,7 @@ import com.qualcomm.robotcore.util.ElapsedTime
  * @author Gilbert O.
 */
 class HyperionPath(
-	private val opMode: LinearOpMode,
-	val movement: Movement
+	private val movement: Movement
 ) {
 	/**
 	 * Start the path with the origin point.

@@ -5,7 +5,7 @@ import ca.helios5009.hyperion.misc.commands.Point
 import java.io.File
 
 class HyperionTest(movement: Movement, private val path: String) {
-	val HyperionPath = HyperionPath(movement.opMode, movement)
+	val HyperionPath = HyperionPath(movement)
 
 
 	fun run() {
