@@ -2,18 +2,31 @@ package ca.helios5009.hyperion.core
 
 import ca.helios5009.hyperion.misc.commands.EventCall
 import ca.helios5009.hyperion.misc.commands.Point
+import ca.helios5009.hyperion.misc.FileReader
 import java.io.File
 
+/**
+ * HyperionTest is a class that reads a file and runs the commands in the file.
+ * You can create a path through the Hyperion Controller app.
+ *
+ * Given a path, the HyperionTest will read the file and run the commands 1 by 1.
+ *
+ * @param movement The Movement object that is used to move the robot.
+ * @param path The path to the file that contains the commands.
+ * @constructor Create a new HyperionTest object.
+ *
+ * @see Movement
+ * @see FileReader
+ */
 class HyperionTest(movement: Movement, private val path: String) {
-	val HyperionPath = HyperionPath(movement)
-
+	private val HyperionPath = HyperionPath(movement)
 
 	fun run() {
 		val file = File(path)
-		var isContinuous = false
-		var continousLength: Byte = 0
-		var currentContinousPoint: Byte = 0
-		val currentPointList = mutableListOf<Point>()
+		var isSegment = false
+		var segmentLength: Byte = 0
+		var currentSegmentPoint: Byte = 0
+		val currentSegment = mutableListOf<Point>()
 
 		for (line in file.readLines()) {
 			if (line.startsWith('-')) {
@@ -25,18 +38,20 @@ class HyperionTest(movement: Movement, private val path: String) {
 					HyperionPath.end(EventCall(args))
 					break;
 				}
-				val eventCall = splitCommand.removeFirst()
+
 				when (command) {
 					"start" -> {
+						val eventCall = splitCommand.removeFirst()
 						val pointSplit = args.split(",")
 						val point = Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), EventCall(eventCall))
 						HyperionPath.start(point)
 					}
-					"continuous" -> {
-						isContinuous = true
-						continousLength = args.toByte()
+					"segment" -> {
+						isSegment = true
+						segmentLength = args.toByte()
 					}
 					"wait" -> {
+						val eventCall = splitCommand.removeFirst()
 						if (args[0].isDigit()) {
 							HyperionPath.wait(convertTime(args), EventCall(eventCall))
 						} else {
@@ -47,13 +62,15 @@ class HyperionTest(movement: Movement, private val path: String) {
 						throw Exception("Invalid command")
 					}
 				}
-			} else if (isContinuous) {
+			} else if (isSegment) {
+				if (segmentLength == 0.toByte()) {
+					throw Exception("Invalid segment length")
+				}
 				val splitCommand = line.split(" ").toMutableList()
 				var pointString = splitCommand.removeFirst()
 				val tolerance = splitCommand.removeFirst()
 				val eventCall = splitCommand.removeFirst()
 				var usingError = false
-
 
 				pointString = if (pointString.startsWith("*")) {
 					usingError = true
@@ -64,21 +81,21 @@ class HyperionTest(movement: Movement, private val path: String) {
 
 				val pointSplit = pointString.split(",").toMutableList()
 				val point = if (usingError) {
-					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble()).useError()
+					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), EventCall(eventCall)).useError()
 				} else {
-					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble())
+					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), EventCall(eventCall))
 				}
 
 				if (!tolerance.startsWith('_') && tolerance != "0") {
-					point.setTolerence(tolerance.toDouble())
+					point.setTolerance(tolerance.toDouble())
 				}
-				currentPointList.add(point)
-				currentContinousPoint++
-				if (currentContinousPoint == continousLength) {
-					HyperionPath.continuousLine(currentPointList)
-					currentContinousPoint = 0
-					currentPointList.clear()
-					isContinuous = false
+				currentSegment.add(point)
+				currentSegmentPoint++
+				if (currentSegmentPoint == segmentLength) {
+					HyperionPath.segment(currentSegment)
+					currentSegmentPoint = 0
+					currentSegment.clear()
+					isSegment = false
 				}
 			}
 		}
@@ -109,13 +126,5 @@ class HyperionTest(movement: Movement, private val path: String) {
 				throw Exception("Invalid time")
 			}
 		}
-	}
-
-	enum class Command {
-		START,
-		END,
-		CONTINUOUS,
-		WAIT,
-		NONE
 	}
 }

@@ -9,9 +9,9 @@ import ca.helios5009.hyperion.misc.relativeRadian
  * @param rot The rotation of the robot at the point in degrees
  * @param event The event to call at the point
  */
-class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = EventCall("nothing")) {
+class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = EventCall("_")) {
 	var rot = relativeRadian(rot * Math.PI / 180)
-	var tolerence = 1.0
+	var tolerance = 1.0
 	var type = PointType.Global
 	var useError = false
 	var useManualTorence = false
@@ -36,8 +36,8 @@ class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = Ev
 		return this
 	}
 
-	fun setTolerence(tolerence: Double = 1.0): Point {
-		this.tolerence = tolerence
+	fun setTolerance(tolerence: Double = 1.0): Point {
+		this.tolerance = tolerence
 		useManualTorence = true
 		return this
 	}

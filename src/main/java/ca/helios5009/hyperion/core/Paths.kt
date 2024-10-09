@@ -5,7 +5,7 @@ import ca.helios5009.hyperion.misc.FileReader
 import java.io.File
 
 class AutonPaths {
-	val folder = FileReader().getFile("autonomous")
+	val folder = FileReader.getFile("autonomous")
 	fun storePath(content: String, fileName: String) {
 		File("${folder}/${fileName}").writeText(content)
 	}

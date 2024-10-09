@@ -68,7 +68,7 @@ class CommandExecute(
 		if (!opMode.opModeIsActive()) {
 			return
 		}
-		movement!!.setPosition(point)
+		movement.setPosition(point)
 		eventListener.call(point.event.message)
 	}
 
@@ -84,7 +84,7 @@ class CommandExecute(
 			return
 		}
 		eventListener.call(point.event.message)
-		movement?.run(arrayListOf(point))
+		movement.run(arrayListOf(point))
 	}
 
 	/**
@@ -152,7 +152,7 @@ class CommandExecute(
 		}
 
 		val points = commandsParse.bezier(bezier.start, bezier.control[0], bezier.control[1], bezier.end)
-		movement?.run(points)
+		movement.run(points)
 	}
 
 	private fun handleBlock(block: ArrayList<LinkedTreeMap<String, JsonObject>>) {
@@ -173,7 +173,7 @@ class CommandExecute(
 				"Point: ${line.x}, ${line.y}, ${line.rot}"
 			)
 		}
-		movement?.run(listOfPoints)
+		movement.run(listOfPoints)
 	}
 
 }

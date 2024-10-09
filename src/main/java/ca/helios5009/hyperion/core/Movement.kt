@@ -7,10 +7,8 @@ import ca.helios5009.hyperion.misc.commands.Point
 import ca.helios5009.hyperion.misc.commands.PointType
 import ca.helios5009.hyperion.misc.cosineLaw
 import ca.helios5009.hyperion.misc.events.EventListener
-import com.qualcomm.hardware.sparkfun.SparkFunOTOS
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -74,7 +72,7 @@ class Movement(
 			currentPosition = getPosition() // Get the current position of the robot // Set the path index to the current point in the path
 
 			val vectorTolerance = if (currentTargetPoint.useManualTorence) {
-				currentTargetPoint.tolerence // Use the manual tolerance if it is set
+				currentTargetPoint.tolerance // Use the manual tolerance if it is set
 			} else {
 				val pointAhead = path[currentPathIndex + 1] // Get the point that is ahead of the current point
 				val distanceA = euclideanDistance(currentPosition, currentTargetPoint) // Calculate the distance between the current position and the target point
