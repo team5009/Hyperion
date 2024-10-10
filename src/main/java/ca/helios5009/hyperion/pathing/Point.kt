@@ -1,6 +1,7 @@
-package ca.helios5009.hyperion.misc.commands
+package ca.helios5009.hyperion.pathing
 
 import ca.helios5009.hyperion.misc.relativeRadian
+import java.util.Objects
 
 /**
  * A point in a path
@@ -9,7 +10,7 @@ import ca.helios5009.hyperion.misc.relativeRadian
  * @param rot The rotation of the robot at the point in degrees
  * @param event The event to call at the point
  */
-class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = EventCall("_")) {
+class Point(var x: Double, var y: Double, rot: Double, val event: String = "_") {
 	var rot = relativeRadian(rot * Math.PI / 180)
 	var tolerance = 1.0
 	var type = PointType.Global
@@ -20,7 +21,7 @@ class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = Ev
 	 * Local points are relative to the current position of the robot
 	 * @return The point
 	 */
-	fun setLocal():Point {
+	fun setLocal(): Point {
 		type = PointType.Relative
 		return this
 	}
@@ -31,7 +32,7 @@ class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = Ev
 	 * This is useful for PID control. Use mostly in continuous movements where you want to force the bot to go slower in certain situations.
 	 * @return The point
 	 */
-	fun useError():Point {
+	fun useError(): Point {
 		useError = true
 		return this
 	}
@@ -46,12 +47,17 @@ class Point(var x: Double, var y: Double, rot: Double, val event: EventCall = Ev
 		return Point(x, y, rot * 180/Math.PI, event)
 	}
 
+	override fun toString() = "Point(x=$x, y=$y, rot=$rot)"
+
 	override fun equals(other: Any?): Boolean {
 		if (other is Point) {
 			return x == other.x && y == other.y && rot == other.rot
 		}
 		return false
 	}
+
+	override fun hashCode() = Objects.hash(x, y, rot)
+
 }
 
 enum class PointType {

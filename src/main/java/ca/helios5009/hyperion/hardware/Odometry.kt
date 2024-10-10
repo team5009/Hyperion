@@ -1,6 +1,6 @@
-package ca.helios5009.hyperion.core
+package ca.helios5009.hyperion.hardware
 
-import ca.helios5009.hyperion.misc.commands.Point
+import ca.helios5009.hyperion.pathing.Point
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI

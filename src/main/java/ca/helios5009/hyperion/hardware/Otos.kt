@@ -1,6 +1,6 @@
-package ca.helios5009.hyperion.misc
+package ca.helios5009.hyperion.hardware
 
-import ca.helios5009.hyperion.misc.commands.Point
+import ca.helios5009.hyperion.pathing.Point
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS
 import com.qualcomm.robotcore.hardware.HardwareMap
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit

@@ -1,14 +1,11 @@
-package ca.helios5009.hyperion.misc
+package ca.helios5009.hyperion.hardware
 
 import com.qualcomm.robotcore.hardware.HardwareDevice
 import com.qualcomm.robotcore.hardware.I2cAddr
 import com.qualcomm.robotcore.hardware.I2cDeviceSynch
 import com.qualcomm.robotcore.hardware.I2cDeviceSynchDevice
-import com.qualcomm.robotcore.hardware.I2cDeviceSynchSimple
-import com.qualcomm.robotcore.hardware.I2cWaitControl
 import com.qualcomm.robotcore.hardware.configuration.annotations.DeviceProperties
 import com.qualcomm.robotcore.hardware.configuration.annotations.I2cDeviceType
-import com.qualcomm.robotcore.util.TypeConversion
 
 @I2cDeviceType
 @DeviceProperties(name = "Pixy2 Smart Vision Camera", description = "Pixy2 Smart Vision Camera", xmlTag = "Pixy2")

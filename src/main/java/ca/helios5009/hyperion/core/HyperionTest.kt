@@ -1,8 +1,8 @@
 package ca.helios5009.hyperion.core
 
-import ca.helios5009.hyperion.misc.commands.EventCall
-import ca.helios5009.hyperion.misc.commands.Point
+import ca.helios5009.hyperion.pathing.Point
 import ca.helios5009.hyperion.misc.FileReader
+import ca.helios5009.hyperion.pathing.PathBuilder
 import java.io.File
 
 /**
@@ -19,7 +19,7 @@ import java.io.File
  * @see FileReader
  */
 class HyperionTest(movement: Movement, private val path: String) {
-	private val HyperionPath = HyperionPath(movement)
+	private val HyperionPath = PathBuilder(movement)
 
 	fun run() {
 		val file = File(path)
@@ -35,7 +35,7 @@ class HyperionTest(movement: Movement, private val path: String) {
 				val command = splitCommand.removeFirst()
 				val args = splitCommand.removeFirst()
 				if (command == "end") {
-					HyperionPath.end(EventCall(args))
+					HyperionPath.end(args)
 					break;
 				}
 
@@ -43,7 +43,7 @@ class HyperionTest(movement: Movement, private val path: String) {
 					"start" -> {
 						val eventCall = splitCommand.removeFirst()
 						val pointSplit = args.split(",")
-						val point = Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), EventCall(eventCall))
+						val point = Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall)
 						HyperionPath.start(point)
 					}
 					"segment" -> {
@@ -53,9 +53,9 @@ class HyperionTest(movement: Movement, private val path: String) {
 					"wait" -> {
 						val eventCall = splitCommand.removeFirst()
 						if (args[0].isDigit()) {
-							HyperionPath.wait(convertTime(args), EventCall(eventCall))
+							HyperionPath.wait(convertTime(args), eventCall)
 						} else {
-							HyperionPath.wait(args, EventCall(eventCall))
+							HyperionPath.wait(args, eventCall)
 						}
 					}
 					else -> {
@@ -81,9 +81,9 @@ class HyperionTest(movement: Movement, private val path: String) {
 
 				val pointSplit = pointString.split(",").toMutableList()
 				val point = if (usingError) {
-					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), EventCall(eventCall)).useError()
+					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall).useError()
 				} else {
-					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), EventCall(eventCall))
+					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall)
 				}
 
 				if (!tolerance.startsWith('_') && tolerance != "0") {

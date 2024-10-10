@@ -1,12 +1,10 @@
-package ca.helios5009.hyperion.core
+package ca.helios5009.hyperion.hidden
 
 import android.annotation.SuppressLint
-import ca.helios5009.hyperion.misc.FileReader
-import ca.helios5009.hyperion.misc.commands.Point
+import ca.helios5009.hyperion.pathing.Point
 import ca.helios5009.hyperion.misc.cubicBezier
 import ca.helios5009.hyperion.misc.lerp
 import com.qualcomm.robotcore.util.RobotLog
-import kotlin.math.pow
 
 @SuppressLint("UnsafeDynamicallyLoadedCode")
 class CommandsParse {

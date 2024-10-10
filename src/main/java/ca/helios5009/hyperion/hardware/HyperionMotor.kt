@@ -1,4 +1,4 @@
-package ca.helios5009.hyperion.core
+package ca.helios5009.hyperion.hardware
 
 import com.qualcomm.robotcore.hardware.DcMotorEx
 

@@ -1,12 +1,14 @@
 package ca.helios5009.hyperion.core
 
-import ca.helios5009.hyperion.misc.Otos
-import ca.helios5009.hyperion.misc.PositionTracking
+import ca.helios5009.hyperion.hardware.Odometry
+import ca.helios5009.hyperion.hardware.Otos
+import ca.helios5009.hyperion.misc.constants.PositionTracking
 import ca.helios5009.hyperion.misc.euclideanDistance
-import ca.helios5009.hyperion.misc.commands.Point
-import ca.helios5009.hyperion.misc.commands.PointType
+import ca.helios5009.hyperion.pathing.Point
+import ca.helios5009.hyperion.pathing.PointType
 import ca.helios5009.hyperion.misc.cosineLaw
 import ca.helios5009.hyperion.misc.events.EventListener
+import ca.helios5009.hyperion.pathing.PathBuilder
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 import kotlin.math.cos
@@ -19,22 +21,27 @@ import kotlin.math.sin
  *  - [mimimun path tolerence][Movement.minimumVectorTolerance] for the robot to reach the point in a continuous path, how much leeway the robot has to reach the point
  *  - [timeout] when the robot is stuck, how long the robot should wait before moving on
  *
- *  Other methods include (Don't use this method directly, use [HyperionPath] methods instead):
+ *  Other methods include (Don't use this method directly, use [PathBuilder] methods instead):
  *  - [run] the path that is given to the robot
  *  - [goto] the point that is given to the robot
+ *
+ *  Debug Mode will show telemetry data on the robot's position, the current target point, the vector tolerance, the distance, and the loop time
  * @param opMode The LinearOpMode that the robot is running on
  * @param listener The EventListener that is used to call events
  * @param bot The Motors object that is used to move the robot
  * @param tracking The tracking method that is used to track the robot's position
+ * @param debug If the debug telemetry should be shown
  * @constructor Create a new Movement object
  * @see Motors
  * @see EventListener
+ * @see PathBuilder
  */
 class Movement(
 	val opMode: LinearOpMode,
 	val listener: EventListener,
 	private val bot: Motors,
 	private val tracking: PositionTracking,
+	val debug: Boolean = false
 ) {
 	var minimumVectorTolerance: Double = 2.0
 	var timeout = 150.0
@@ -55,6 +62,12 @@ class Movement(
 	fun run(points: List<Point>) {
 		path = points // Set the path to the list of points
 		val finalPoint = points.last() // Get the final point in the path
+		val loopTime = if (debug) {
+			ElapsedTime()
+		} else {
+			null
+		}
+		var avgLoopTime = 0.0
 		finalPathPoint = if (finalPoint.type == PointType.Global) {
 			finalPoint
 		} else {
@@ -83,17 +96,31 @@ class Movement(
 				maxOf(minimumVectorTolerance, (Math.PI - angleOfPath) * minimumVectorTolerance) // Calculate the vector tolerance
 			}
 
-			listener.call(currentTargetPoint.event.message) // Call events
+			listener.call(currentTargetPoint.event) // Call events
 			resetController() // Reset the PID controllers
-			while(
+			do {
+				val distance = goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
+				if (debug) {
+					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+					avgLoopTime += loopTimeValue
+					avgLoopTime /= 2
+					opMode.telemetry.addData("Current Position", currentPosition.toString())
+					opMode.telemetry.addData("Current Target Point", currentTargetPoint.toString())
+					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
+					opMode.telemetry.addLine("Distance: ${distance}in")
+					opMode.telemetry.addLine("--------------------")
+					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+					opMode.telemetry.addLine("Average Loop Time: ${avgLoopTime}ms")
+					opMode.telemetry.update()
+					loopTime?.reset()
+				}
+			} while (
 				opMode.opModeIsActive() &&
-				euclideanDistance(currentPosition, currentTargetPoint) > vectorTolerance // Check if the robot is close to the target point
-			) {
-				goto(currentTargetPoint) // Move the robot closer to the target point
-			}
+				distance > vectorTolerance
+			) // Loop until the robot is within the vector tolerance
 			currentPathIndex++ // Increment the path index
 		}
-		listener.call(finalPathPoint.event.message) // Call the event at the final point
+		listener.call(finalPathPoint.event) // Call the event at the final point
 		goToEndPoint() // Move the robot to the final point
 		bot.stop()
 		path = listOf()
@@ -103,39 +130,36 @@ class Movement(
 	 * Set constants for the Drive PID controller
 	 * @param gain The gain of the PID controller
 	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param defaultOutputLimit The default output limit of the PID controller
 	 * @param tolerance The tolerance of the PID controller
 	 * @param deadband The deadband of the PID controller
 	 * @see ProportionalController
 	 */
-	fun setDriveConstants(gain: Double, accelerationLimit: Double, defaultOutputLimit: Double, tolerance: Double, deadband: Double) {
-		driveController = ProportionalController(gain, accelerationLimit, defaultOutputLimit, tolerance, deadband)
+	fun setDriveConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
+		driveController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
 	}
 
 	/**
 	 * Set constants for the Strafe PID controller
 	 * @param gain The gain of the PID controller
 	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param defaultOutputLimit The default output limit of the PID controller
 	 * @param tolerance The tolerance of the PID controller
 	 * @param deadband The deadband of the PID controller
 	 * @see ProportionalController
 	 */
-	fun setStrafeConstants(gain: Double, accelerationLimit: Double, defaultOutputLimit: Double, tolerance: Double, deadband: Double) {
-		strafeController = ProportionalController(gain, accelerationLimit, defaultOutputLimit, tolerance, deadband)
+	fun setStrafeConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
+		strafeController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
 	}
 
 	/**
 	 * Set constants for the Rotation PID controller
 	 * @param gain The gain of the PID controller
 	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param defaultOutputLimit The default output limit of the PID controller
 	 * @param tolerance The tolerance of the PID controller
 	 * @param deadband The deadband of the PID controller
 	 * @see ProportionalController
 	 */
-	fun setRotateConstants(gain: Double, accelerationLimit: Double, defaultOutputLimit: Double, tolerance: Double, deadband: Double) {
-		rotateController = ProportionalController(gain, accelerationLimit, defaultOutputLimit, tolerance, deadband, true)
+	fun setRotateConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
+		rotateController = ProportionalController(gain, accelerationLimit, tolerance, deadband, true)
 	}
 
 	/**
@@ -147,7 +171,7 @@ class Movement(
 	 * @see Point
 	 * @see ProportionalController.getOutput
 	 */
-	fun goto(point: Point, endPoint: Boolean = false) {
+	fun goto(point: Point, endPoint: Boolean = false): Double {
 		currentPosition = getPosition() // Get the current position of the robot
 
 		// Calculate the error between the target and the current position
@@ -170,6 +194,14 @@ class Movement(
 		val strafe = -strafeController.getOutput(dy)
 		val rotate = -rotateController.getOutput(deltaRot)
 		bot.move(drive, strafe, rotate)
+		if (debug) {
+			opMode.telemetry.addData("Drive", drive)
+			opMode.telemetry.addData("Strafe", strafe)
+			opMode.telemetry.addData("Rotate", rotate)
+			opMode.telemetry.addLine("--------------------")
+			opMode.telemetry.addData("Speed Factor", speedFactor)
+		}
+		return error
 	}
 
 	/**

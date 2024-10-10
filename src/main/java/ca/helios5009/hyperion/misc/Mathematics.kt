@@ -1,6 +1,6 @@
 package ca.helios5009.hyperion.misc
 
-import ca.helios5009.hyperion.misc.commands.Point
+import ca.helios5009.hyperion.pathing.Point
 import kotlin.math.acos
 import kotlin.math.pow
 import kotlin.math.sqrt

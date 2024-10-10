@@ -7,7 +7,10 @@ import kotlin.io.path.Path
 
 class FileReader {
 	companion object {
-		fun getFile(path: String): String {
+		fun getPath(path: String): String {
+			return AppUtil.FIRST_FOLDER.absolutePath + "/$path"
+		}
+		fun getHyperionPath(path: String): String {
 			return AppUtil.FIRST_FOLDER.absolutePath + "/Hyperion/$path"
 		}
 	}

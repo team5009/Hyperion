@@ -1,9 +1,6 @@
-package ca.helios5009.hyperion.core
+package ca.helios5009.hyperion.pathing
 
-import ca.helios5009.hyperion.misc.commands.Bezier
-import ca.helios5009.hyperion.misc.commands.EventCall
-import ca.helios5009.hyperion.misc.commands.Point
-import ca.helios5009.hyperion.misc.generateBezier
+import ca.helios5009.hyperion.core.Movement
 import com.qualcomm.robotcore.util.ElapsedTime
 
 /**
@@ -13,15 +10,13 @@ import com.qualcomm.robotcore.util.ElapsedTime
  *
  * ALWAYS call start before running any other commands. AND call end after all other commands.
  *
- * @param opMode The LinearOpMode that the robot is running on.
- * @param listener The EventListener that is used to call events.
  * @param movement The Movement object that is used to move the robot.
  * @constructor Create a new HyperionPath object.
  *
  * @see Movement
  * @author Gilbert O.
 */
-class HyperionPath(
+class PathBuilder(
 	private val movement: Movement
 ) {
 	/**
@@ -29,7 +24,7 @@ class HyperionPath(
 	 * @param origin The origin point of the path.
 	 */
 	fun start(origin: Point) {
-		movement.listener.call(origin.event.message)
+		movement.listener.call(origin.event)
 		movement.setPosition(origin)
 	}
 
@@ -39,14 +34,14 @@ class HyperionPath(
 	 */
 	@Deprecated("Only use Continuous")
 	fun line(point: Point) {
-		movement.run(mutableListOf(point))
+		movement.run(listOf(point))
 	}
 
-	@Suppress("Not implemented properly")
-	fun bezier(bezier: Bezier) {
-		val generatedBezier = generateBezier(bezier.start, bezier.control[0], bezier.control[1], bezier.end)
-		movement.run(generatedBezier)
-	}
+//	@Suppress("Not implemented properly")
+//	fun bezier(bezier: Bezier) {
+//		val generatedBezier = generateBezier(bezier.start, bezier.control[0], bezier.control[1], bezier.end)
+//		movement.run(generatedBezier)
+//	}
 
 	/**
 	 * Continuously move the robot to a point. With the list, the robot will calculate the path to the point.
@@ -86,8 +81,8 @@ class HyperionPath(
 	 * End the path. This will stop the robot from moving. It will also call the event that is passed in.
 	 * @param event The event to call when the path is done.
 	 */
-	fun end(event: EventCall) {
-		movement.listener.call(event.message)
+	fun end(event: String) {
+		movement.listener.call(event)
 		movement.stopMovement()
 		movement.listener.clearQueue()
 	}
@@ -106,25 +101,29 @@ class HyperionPath(
 	 * @param time The time to wait in milliseconds.
 	 * @param event The event to call when the time is up.
 	 */
-	fun wait(time: Double, event: EventCall) {
-		movement.listener.call(event.message)
-		val currentPosition = movement.getPosition()
-		val timer = ElapsedTime()
-		while(movement.opMode.opModeIsActive() && timer.milliseconds() < time) {
-			movement.goto(currentPosition, true)
+	fun wait(time: Double, event: String = "_") {
+		val loopTime = if (movement.debug) {
+			ElapsedTime()
+		} else {
+			null
 		}
-	}
-	/**
-	 * Wait for a certain amount of time. Bot will hold it's position as much as it can.
-	 * This is useful for waiting for other bots to move.
-	 * By holding it's position, any other bots that are pushing it will not affect it's position.
-	 * @param time The time to wait in milliseconds.
-	 */
-	fun wait(time: Double) {
+		var avgLoopTime = 0.0
+		movement.listener.call(event)
 		val currentPosition = movement.getPosition()
 		val timer = ElapsedTime()
 		while(movement.opMode.opModeIsActive() && timer.milliseconds() < time) {
-			movement.goto(currentPosition, true)
+			val distance = movement.goto(currentPosition, true)
+			if (movement.debug) {
+				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+				avgLoopTime += loopTimeValue
+				avgLoopTime /= 2
+				movement.opMode.telemetry.addLine("Waiting for ${time}ms")
+				movement.opMode.telemetry.addLine("Distance ${distance}in")
+				movement.opMode.telemetry.addLine("Loop Time ${loopTimeValue}ms")
+				movement.opMode.telemetry.addLine("Average Loop Time ${avgLoopTime}ms")
+				movement.opMode.telemetry.update()
+				loopTime?.reset()
+			}
 		}
 	}
 
@@ -135,36 +134,46 @@ class HyperionPath(
 	 * @param message The message to wait for.
 	 * @param event The event to call when the message is called.
 	 */
-	fun wait(message: String, event: EventCall) {
-		movement.listener.call(event.message)
-		val currentPosition = movement.getPosition()
-		if (message.startsWith('_')) {
-			val timer = ElapsedTime()
-			while(movement.opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
-				movement.goto(currentPosition, true)
-			}
+	fun wait(message: String, event: String = "_") {
+		val loopTime = if (movement.debug) {
+			ElapsedTime()
 		} else {
-			while(movement.opMode.opModeIsActive() && !movement.listener.isInQueue(message)) {
-				movement.goto(currentPosition, true)
-			}
+			null
 		}
-	}
-	/**
-	 * Wait for a certain event to happen. Bot will hold it's position as much as it can.
-	 * This is useful for waiting for event's to happen.
-	 * By holding it's position, any other bots that are pushing it will not affect it's position.
-	 * @param message The message to wait for.
-	 */
-	fun wait(message: String) {
+		var avgLoopTime = 0.0
+		movement.listener.call(event)
 		val currentPosition = movement.getPosition()
 		if (message.startsWith('_')) {
 			val timer = ElapsedTime()
 			while(movement.opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
-				movement.goto(currentPosition, true)
+				val distance = movement.goto(currentPosition, true)
+
+				if (movement.debug) {
+					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+					avgLoopTime += loopTimeValue
+					avgLoopTime /= 2
+					movement.opMode.telemetry.addLine("Waiting for 1500ms")
+					movement.opMode.telemetry.addLine("Distance ${distance}in")
+					movement.opMode.telemetry.addLine("Loop Time ${loopTimeValue}ms")
+					movement.opMode.telemetry.addLine("Average Loop Time ${avgLoopTime}ms")
+					movement.opMode.telemetry.update()
+					loopTime?.reset()
+				}
 			}
 		} else {
 			while(movement.opMode.opModeIsActive() && !movement.listener.isInQueue(message)) {
-				movement.goto(currentPosition, true)
+				val distance = movement.goto(currentPosition, true)
+				if (movement.debug) {
+					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+					avgLoopTime += loopTimeValue
+					avgLoopTime /= 2
+					movement.opMode.telemetry.addData("Waiting for", message)
+					movement.opMode.telemetry.addLine("Distance ${distance}in")
+					movement.opMode.telemetry.addLine("Loop Time ${loopTimeValue}ms")
+					movement.opMode.telemetry.addLine("Average Loop Time ${avgLoopTime}ms")
+					movement.opMode.telemetry.update()
+					loopTime?.reset()
+				}
 			}
 		}
 	}

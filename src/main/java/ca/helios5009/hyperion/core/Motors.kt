@@ -1,5 +1,6 @@
 package ca.helios5009.hyperion.core
 
+import ca.helios5009.hyperion.hardware.HyperionMotor
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple

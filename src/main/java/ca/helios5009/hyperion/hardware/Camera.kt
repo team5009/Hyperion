@@ -1,4 +1,4 @@
-package ca.helios5009.hyperion.misc
+package ca.helios5009.hyperion.hardware
 
 import com.qualcomm.robotcore.hardware.HardwareMap
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName
