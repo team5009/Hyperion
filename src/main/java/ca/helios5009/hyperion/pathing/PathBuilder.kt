@@ -81,15 +81,8 @@ class PathBuilder(
 	 * End the path. This will stop the robot from moving. It will also call the event that is passed in.
 	 * @param event The event to call when the path is done.
 	 */
-	fun end(event: String) {
+	fun end(event: String = "_") {
 		movement.listener.call(event)
-		movement.stopMovement()
-		movement.listener.clearQueue()
-	}
-	/**
-	 * End the path. This will stop the robot from moving. It will also call the event that is passed in.
-	 */
-	fun end() {
 		movement.stopMovement()
 		movement.listener.clearQueue()
 	}

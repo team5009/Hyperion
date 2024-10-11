@@ -81,25 +81,42 @@ class Movement(
 		// Set the final path point to the last point in the list
 		currentPathIndex = 0 // Set the current path index to 0
 		while (currentPathIndex < path.size - 1) { // Loop through the path but leave the last point
-			currentTargetPoint = points[currentPathIndex] // Set the current target point to the current point in the path
-			currentPosition = getPosition() // Get the current position of the robot // Set the path index to the current point in the path
+			currentTargetPoint =
+				points[currentPathIndex] // Set the current target point to the current point in the path
+			currentPosition =
+				getPosition() // Get the current position of the robot // Set the path index to the current point in the path
 
 			val vectorTolerance = if (currentTargetPoint.useManualTorence) {
 				currentTargetPoint.tolerance // Use the manual tolerance if it is set
 			} else {
-				val pointAhead = path[currentPathIndex + 1] // Get the point that is ahead of the current point
-				val distanceA = euclideanDistance(currentPosition, currentTargetPoint) // Calculate the distance between the current position and the target point
-				val distanceB = euclideanDistance(currentTargetPoint, pointAhead) // Calculate the distance between the target point and the next point
-				val distanceC = euclideanDistance(currentPosition, pointAhead) // Calculate the distance between the current position and the next point
+				val pointAhead =
+					path[currentPathIndex + 1] // Get the point that is ahead of the current point
+				val distanceA = euclideanDistance(
+					currentPosition,
+					currentTargetPoint
+				) // Calculate the distance between the current position and the target point
+				val distanceB = euclideanDistance(
+					currentTargetPoint,
+					pointAhead
+				) // Calculate the distance between the target point and the next point
+				val distanceC = euclideanDistance(
+					currentPosition,
+					pointAhead
+				) // Calculate the distance between the current position and the next point
 
-				val angleOfPath = cosineLaw(distanceA, distanceB, distanceC) // Calculate the angle of the path
-				maxOf(minimumVectorTolerance, (Math.PI - angleOfPath) * minimumVectorTolerance) // Calculate the vector tolerance
+				val angleOfPath =
+					cosineLaw(distanceA, distanceB, distanceC) // Calculate the angle of the path
+				maxOf(
+					minimumVectorTolerance,
+					(Math.PI - angleOfPath) * minimumVectorTolerance
+				) // Calculate the vector tolerance
 			}
 
 			listener.call(currentTargetPoint.event) // Call events
 			resetController() // Reset the PID controllers
 			do {
-				val distance = goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
+				val distance =
+					goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					avgLoopTime += loopTimeValue
@@ -124,42 +141,6 @@ class Movement(
 		goToEndPoint() // Move the robot to the final point
 		bot.stop()
 		path = listOf()
-	}
-
-	/**
-	 * Set constants for the Drive PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
-	 */
-	fun setDriveConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		driveController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
-	}
-
-	/**
-	 * Set constants for the Strafe PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
-	 */
-	fun setStrafeConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		strafeController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
-	}
-
-	/**
-	 * Set constants for the Rotation PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
-	 */
-	fun setRotateConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		rotateController = ProportionalController(gain, accelerationLimit, tolerance, deadband, true)
 	}
 
 	/**
@@ -205,6 +186,67 @@ class Movement(
 	}
 
 	/**
+	 * Move the robot to the end point.
+	 * This is used to make sure that the robot reaches the end point.
+	 * It will keep moving as long as one of the controllers have been to the ready position.
+	 *
+	 * @see Point
+	 * @see ProportionalController
+	 */
+	private fun goToEndPoint() {
+		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
+		val loopTime = if (debug) {
+			ElapsedTime()
+		} else {
+			null
+		}
+		var avgLoopTime = 0.0
+
+		var inDrivePosition = false
+		var inStrafePosition = false
+		var inRotatePosition = false
+		resetController()
+		while (opMode.opModeIsActive()) {
+			goto(finalPathPoint, true)
+			if (debug) {
+				if ( driveController.inPosition && strafeController.inPosition && rotateController.inPosition ) {
+					break
+				}
+				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+				avgLoopTime += loopTimeValue
+				avgLoopTime /= 2
+				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+				opMode.telemetry.addLine("Average Loop Time: ${avgLoopTime}ms")
+
+				opMode.telemetry.update()
+				loopTime?.reset()
+			} else {
+				if (inDrivePosition && inStrafePosition && inRotatePosition) {
+					if (
+						timeoutTimer.milliseconds() > timeout
+						|| (driveController.inPosition && strafeController.inPosition && rotateController.inPosition)
+					) {
+						break
+					}
+				} else {
+					timeoutTimer.reset()
+				}
+
+				if (driveController.inPosition && !inDrivePosition) {
+					inDrivePosition = true
+				}
+				if (strafeController.inPosition && !inStrafePosition) {
+					inStrafePosition = true
+				}
+				if (rotateController.inPosition && !inRotatePosition) {
+					inRotatePosition = true
+				}
+			}
+
+		}
+	}
+
+	/**
 	 * Look for the next error in the path. This is used to calculate the speed factor
 	 * When looking for the next error, it use's the point after the error point to control it's distance.
 	 * Best practice to set point that will act as a reference point after the error if you want to control the speed sooner or later.
@@ -232,50 +274,6 @@ class Movement(
 		}
 
 		return distance
-	}
-
-	/**
-	 * Move the robot to the end point.
-	 * This is used to make sure that the robot reaches the end point.
-	 * It will keep moving as long as one of the controllers have been to the ready position.
-	 *
-	 * @see Point
-	 * @see ProportionalController
-	 */
-	private fun goToEndPoint() {
-		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
-
-		var inDrivePosition = false
-		var inStrafePosition = false
-		var inRotatePosition = false
-		resetController()
-		while (opMode.opModeIsActive()) {
-			goto(finalPathPoint, true)
-			if (inDrivePosition && inStrafePosition && inRotatePosition) {
-				if (
-					timeoutTimer.milliseconds() > timeout
-					|| (driveController.inPosition && strafeController.inPosition && rotateController.inPosition)
-				) {
-					break
-				}
-			} else {
-				timeoutTimer.reset()
-			}
-
-			if (driveController.inPosition && !inDrivePosition) {
-				inDrivePosition = true
-			}
-			if (strafeController.inPosition && !inStrafePosition) {
-				inStrafePosition = true
-			}
-			if (rotateController.inPosition && !inRotatePosition) {
-				inRotatePosition = true
-			}
-		}
-	}
-
-	fun stopMovement() {
-		bot.stop()
 	}
 
 	fun setTracking(otos: Otos?, deadwheels: Odometry?) {
@@ -311,10 +309,50 @@ class Movement(
 		}
 	}
 
+	/**
+	 * Set constants for the Drive PID controller
+	 * @param gain The gain of the PID controller
+	 * @param accelerationLimit The acceleration limit of the PID controller
+	 * @param tolerance The tolerance of the PID controller
+	 * @param deadband The deadband of the PID controller
+	 * @see ProportionalController
+	 */
+	fun setDriveConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
+		driveController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
+	}
+
+	/**
+	 * Set constants for the Strafe PID controller
+	 * @param gain The gain of the PID controller
+	 * @param accelerationLimit The acceleration limit of the PID controller
+	 * @param tolerance The tolerance of the PID controller
+	 * @param deadband The deadband of the PID controller
+	 * @see ProportionalController
+	 */
+	fun setStrafeConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
+		strafeController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
+	}
+
+	/**
+	 * Set constants for the Rotation PID controller
+	 * @param gain The gain of the PID controller
+	 * @param accelerationLimit The acceleration limit of the PID controller
+	 * @param tolerance The tolerance of the PID controller
+	 * @param deadband The deadband of the PID controller
+	 * @see ProportionalController
+	 */
+	fun setRotateConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
+		rotateController = ProportionalController(gain, accelerationLimit, tolerance, deadband, true)
+	}
+
 	private fun resetController() {
 		driveController.reset()
 		strafeController.reset()
 		rotateController.reset()
+	}
+
+	fun stopMovement() {
+		bot.stop()
 	}
 
 

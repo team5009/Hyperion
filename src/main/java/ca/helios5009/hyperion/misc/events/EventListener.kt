@@ -6,6 +6,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * EventListener is a class that allows creation of non-blocking events that can be triggered at user-defined points.
+ * This is useful for multitasking and running multiple tasks at once.
+ *
+ * @see Event
+ */
 class EventListener() {
 	var value = AtomicReference("")
 	private val triggerFunctions = mutableListOf<Event>()
@@ -17,8 +23,10 @@ class EventListener() {
 	 * @param callbackClass The class that will be called when the event is triggered\
 	 * @see Event
 	 */
-	fun subscribe(callbackClass: Event) {
-		triggerFunctions.add(callbackClass)
+	fun subscribe(vararg callbackClass: Event) {
+		callbackClass.forEach {
+			triggerFunctions.add(it)
+		}
 	}
 
 	/**
