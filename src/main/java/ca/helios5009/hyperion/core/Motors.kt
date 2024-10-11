@@ -23,8 +23,8 @@ class Motors(
 	val powerRatio = AtomicReference(1.0) // The max power of the motors
 	private val fl: HyperionMotor = HyperionMotor(hardwareMap.get(frontLeft) as DcMotorEx)
 	private val fr: HyperionMotor = HyperionMotor(hardwareMap.get(frontRight) as DcMotorEx)
-	private val bl: HyperionMotor = HyperionMotor(hardwareMap.get(backRight) as DcMotorEx)
-	private val br: HyperionMotor = HyperionMotor(hardwareMap.get(backLeft) as DcMotorEx)
+	private val bl: HyperionMotor = HyperionMotor(hardwareMap.get(backLeft) as DcMotorEx)
+	private val br: HyperionMotor = HyperionMotor(hardwareMap.get(backRight) as DcMotorEx)
 	init {
 		val motorList = arrayOf(fl, fr, bl, br)
 		motorList[0].motor.direction = DcMotorSimple.Direction.REVERSE

@@ -54,11 +54,6 @@ android {
 	ndkVersion = "27.1.12297006"
 
 }
-
-task("prepareKotlinBuildScriptModel") {
-
-}
-
 dependencies {
 	compileOnly("org.firstinspires.ftc:RobotCore:$ftcVersion")
 	compileOnly("org.firstinspires.ftc:Hardware:$ftcVersion")
@@ -69,8 +64,6 @@ dependencies {
 	implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.6.10"))
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 }
-
-
 
 //project.afterEvaluate{
 //	for (buildTask in tasks.withType(CargoBuildTask::class.java)) {
