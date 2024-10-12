@@ -1,6 +1,8 @@
 package ca.helios5009.hyperion.hardware
 
+import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
+import kotlin.math.abs
 
 /**
  * HyperionMotor is a class that allows for the creation of motors for the robot to use.
@@ -17,14 +19,37 @@ import com.qualcomm.robotcore.hardware.DcMotorEx
  */
 class HyperionMotor(val motor: DcMotorEx) {
 	private var power = 0.0
+	var powerTolerence = 0.01
 	fun setPower(power: Double) {
+		if (abs(power - this.power) > powerTolerence) {
+			this.power = power
+			motor.power = power
+		}
+	}
+
+	fun setPowerWithoutTolerance(power: Double) {
 		if (power != this.power) {
 			this.power = power
 			motor.power = power
 		}
 	}
 
+	fun getPosition(): Int {
+		return motor.currentPosition
+	}
+
+	fun getVelocity(): Double {
+		return motor.velocity
+	}
+
+
+
+	fun resetEncoder() {
+		motor.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+		motor.mode = DcMotor.RunMode.RUN_USING_ENCODER
+	}
+
 	fun stop() {
-		setPower(0.0)
+		this.power = 0.0
 	}
 }

@@ -4,6 +4,7 @@ import ca.helios5009.hyperion.hardware.HyperionMotor
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
+import com.qualcomm.robotcore.hardware.Gamepad
 import com.qualcomm.robotcore.hardware.HardwareMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
@@ -37,9 +38,12 @@ class Motors(
 
 	/**
 	 * Given the drive, strafe, and rotate values, move the robot.
+	 * Don't use this method if you are using a gamepad.
 	 * @param drive The forward/backward power of the robot.
 	 * @param strafe The left/right power of the robot.
 	 * @param rotate The rotation power of the robot.
+	 *
+	 * @see gamepadMove for gamepad controls.
 	 */
 	fun move(drive: Double, strafe: Double, rotate: Double) {
 		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
@@ -49,6 +53,26 @@ class Motors(
 		fr.setPower((drive - strafe - rotate) / max)
 		bl.setPower((drive - strafe + rotate) / max)
 		br.setPower((drive + strafe - rotate) / max)
+	}
+
+
+	/**
+	 * Given a gamepad, move the robot.
+	 * @param gamepad The gamepad to get the values from.
+	 * @see move for non-gamepad controls.
+	 */
+	fun gamepadMove(gamepad: Gamepad) {
+		val drive = -gamepad.left_stick_y.toDouble()
+		val strafe = gamepad.left_stick_x.toDouble()
+		val rotate = gamepad.right_stick_x.toDouble()
+
+		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
+		val max = maxOf(powerRatio.get(), maxPower)
+
+		fl.setPowerWithoutTolerance((drive + strafe + rotate) / max)
+		fr.setPowerWithoutTolerance((drive - strafe - rotate) / max)
+		bl.setPowerWithoutTolerance((drive - strafe + rotate) / max)
+		br.setPowerWithoutTolerance((drive + strafe - rotate) / max)
 	}
 
 	fun stop () {

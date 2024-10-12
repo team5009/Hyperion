@@ -2,30 +2,39 @@ package ca.helios5009.hyperion.misc.events
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * EventListener is a class that allows creation of non-blocking events that can be triggered at user-defined points.
- * This is useful for multitasking and running multiple tasks at once.
+ * EventListener class
  *
- * @see Event
+ * This class is used to listen to events and trigger them. This is useful for multitasking
+ * and to prevent the program from freezing when an event is triggered.
+ *
+ * @property queue The queue of events to be triggered
+ * @property listeners The listeners to be called when an event is triggered
  */
-class EventListener() {
-	var value = AtomicReference("")
-	private val triggerFunctions = mutableListOf<Event>()
-	private val queue = AtomicReference(mutableListOf<String>())
-	private val scopes = mutableListOf<Job>()
+class EventListener {
+	private val queue = mutableListOf<String>()
+	private val listeners = hashMapOf<String, MutableList<suspend () -> String?>>()
 
 	/**
-	 * Subscribe to an event
-	 * @param callbackClass The class that will be called when the event is triggered\
-	 * @see Event
+	 * Add a listener to an event to be called when the event is triggered
+	 *
+	 * Events starting with an underscore are ignored from the listener. This is to add optional
+	 * @param event The event to listen to
+	 * @param listener The listener to be called when the event is triggered (suspended)
+	 *
 	 */
-	fun subscribe(vararg callbackClass: Event) {
-		callbackClass.forEach {
-			triggerFunctions.add(it)
+	fun addListener(event: String, listener: suspend () -> String?) {
+		if (event.startsWith("_")) {
+			return
+		}
+		synchronized(listeners) {
+			if (listeners[event] == null) {
+				listeners[event] = mutableListOf()
+			}
+			listeners[event]!!.add(listener)
 		}
 	}
 
@@ -37,50 +46,48 @@ class EventListener() {
 	 *
 	 * The event called is added to a queue. This is so that the event don't overlap each other.
 	 *
-	 * @param newValue The event to trigger
-	 * @see Event
+	 * @param event The event to trigger
 	 */
-	fun call(newValue: String) {
-		if (newValue.startsWith('_')) {
+	fun call(event: String) {
+		if (event.startsWith("_")) {
 			return
 		}
-		queue.get().add(newValue)
-		var deleted = false
-		triggerFunctions.forEach {
-			if (it.event.lowercase() == newValue) {
-				if (!deleted) {
-					deleted = queue.get().remove(newValue)
+
+		synchronized(queue) {
+			queue.add(event)
+			var eventRemovedFromQueue = false
+			val listeners = listeners[event] ?: return
+			listeners.forEach { listener ->
+				if (!eventRemovedFromQueue) {
+					eventRemovedFromQueue = queue.remove(event)
 				}
-				scopes.add(CoroutineScope(Dispatchers.Default).launch {
-					it.run()
+				CoroutineScope(Dispatchers.Default).launch {
+					val result = listener()
+					if (result != null) {
+						call(result)
+					}
 					return@launch
-				})
+				}
 			}
+
 		}
 	}
 
-	fun isInQueue(message: String): Boolean {
-		val queue = queue.get()
-		if (queue.isEmpty()) {
-			return false
+	/**
+	 * Check if an event is in the queue
+	 *
+	 * @param event The event to check
+	 * @return True if the event is in the queue, false otherwise
+	 */
+	fun isInQueue(event: String): Boolean {
+		synchronized(queue) {
+			return queue.contains(event)
 		}
-
-		if (queue.contains(message)) {
-			queue.remove(message)
-			return true
-		}
-		return false
 	}
 
-	fun clearQueue() {
-		queue.get().clear()
-	}
-
-	fun clearScopes() {
-		scopes.forEach {
-			it.cancel()
+	fun getQueueString(): String {
+		synchronized(queue) {
+			return queue.toString()
 		}
-		scopes.clear()
 	}
-
 }

@@ -27,7 +27,7 @@ import kotlin.math.sin
  *
  *  Debug Mode will show telemetry data on the robot's position, the current target point, the vector tolerance, the distance, and the loop time
  * @param opMode The LinearOpMode that the robot is running on
- * @param listener The EventListener that is used to call events
+ * @param listener The ca.helios5009.hyperion.misc.events.EventListener that is used to call events
  * @param bot The Motors object that is used to move the robot
  * @param tracking The tracking method that is used to track the robot's position
  * @param debug If the debug telemetry should be shown

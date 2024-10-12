@@ -84,7 +84,6 @@ class PathBuilder(
 	fun end(event: String = "_") {
 		movement.listener.call(event)
 		movement.stopMovement()
-		movement.listener.clearQueue()
 	}
 
 	/**
