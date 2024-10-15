@@ -11,6 +11,7 @@ import ca.helios5009.hyperion.misc.events.EventListener
 import ca.helios5009.hyperion.pathing.PathBuilder
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -59,25 +60,37 @@ class Movement(
 	private var currentPathIndex = 0;
 	private var currentPosition = Point(0.0, 0.0, 0.0)
 
+	private var distanceFromTarget = AtomicReference(0.0)
+	
+
+
+
 	fun run(points: List<Point>) {
 		path = points // Set the path to the list of points
 		val finalPoint = points.last() // Get the final point in the path
+		finalPathPoint = if (finalPoint.type == PointType.Global) {
+			finalPoint
+		} else {
+			val relativePosition: Point = if (points.size - 2 < 0) {
+				getPosition()
+			} else {
+				points[points.size - 2]
+			}
+			Point(
+				finalPoint.x + relativePosition.x,
+				finalPoint.y + relativePosition.y,
+				finalPoint.rot + relativePosition.rot
+			)
+		}
+
 		val loopTime = if (debug) {
 			ElapsedTime()
 		} else {
 			null
 		}
-		var avgLoopTime = 0.0
-		finalPathPoint = if (finalPoint.type == PointType.Global) {
-			finalPoint
-		} else {
-			currentPosition = getPosition()
-			Point(
-				finalPoint.x + currentPosition.x,
-				finalPoint.y + currentPosition.y,
-				finalPoint.rot + currentPosition.rot
-			)
-		}
+		var totalLoopTime = 0.0
+		var loopCount = 0
+
 		// Set the final path point to the last point in the list
 		currentPathIndex = 0 // Set the current path index to 0
 		while (currentPathIndex < path.size - 1) { // Loop through the path but leave the last point
@@ -85,7 +98,7 @@ class Movement(
 				points[currentPathIndex] // Set the current target point to the current point in the path
 			currentPosition =
 				getPosition() // Get the current position of the robot // Set the path index to the current point in the path
-
+			var angleOfPath = 0.0 // Initialize the angle of the path
 			val vectorTolerance = if (currentTargetPoint.useManualTorence) {
 				currentTargetPoint.tolerance // Use the manual tolerance if it is set
 			} else {
@@ -104,7 +117,7 @@ class Movement(
 					pointAhead
 				) // Calculate the distance between the current position and the next point
 
-				val angleOfPath =
+				angleOfPath =
 					cosineLaw(distanceA, distanceB, distanceC) // Calculate the angle of the path
 				maxOf(
 					minimumVectorTolerance,
@@ -117,17 +130,20 @@ class Movement(
 			do {
 				val distance =
 					goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
+				distanceFromTarget.set(distance) // Set the distance from the target point
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-					avgLoopTime += loopTimeValue
-					avgLoopTime /= 2
-					opMode.telemetry.addData("Current Position", currentPosition.toString())
-					opMode.telemetry.addData("Current Target Point", currentTargetPoint.toString())
+					totalLoopTime += loopTimeValue
+					loopCount++
+					opMode.telemetry.addData("Current Execution", "Through Path")
+					opMode.telemetry.addData("Position", currentPosition.toString())
+					opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
 					opMode.telemetry.addLine("Distance: ${distance}in")
+					opMode.telemetry.addLine("Angle of Path: $angleOfPath")
 					opMode.telemetry.addLine("--------------------")
 					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-					opMode.telemetry.addLine("Average Loop Time: ${avgLoopTime}ms")
+					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					opMode.telemetry.update()
 					loopTime?.reset()
 				}
@@ -145,7 +161,7 @@ class Movement(
 
 	/**
 	 * Set power to the motors to move the robot to a point.
-	 * Calculates the power needed to give to each motors (ONLY FOR [MECANUM](<en.wikipedia.org/wiki/Mecanum_wheel>)) WHEELS
+	 * Calculates the power needed to give to each motors (ONLY FOR [MECANUM](<en.wikipedia.org/wiki/Mecanum_wheel>) WHEELS)
 	 * @param point The point to move the robot to
 	 * @param endPoint If it is the end point
 	 *
@@ -179,8 +195,8 @@ class Movement(
 			opMode.telemetry.addData("Drive", drive)
 			opMode.telemetry.addData("Strafe", strafe)
 			opMode.telemetry.addData("Rotate", rotate)
-			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Speed Factor", speedFactor)
+			opMode.telemetry.addLine("--------------------")
 		}
 		return error
 	}
@@ -200,23 +216,30 @@ class Movement(
 		} else {
 			null
 		}
-		var avgLoopTime = 0.0
+		var totalLoopTime = 0.0
+		var loopCount = 0
 
 		var inDrivePosition = false
 		var inStrafePosition = false
 		var inRotatePosition = false
 		resetController()
 		while (opMode.opModeIsActive()) {
-			goto(finalPathPoint, true)
+			val distance = goto(finalPathPoint, true)
+			distanceFromTarget.set(distance)
 			if (debug) {
 				if ( driveController.inPosition && strafeController.inPosition && rotateController.inPosition ) {
 					break
 				}
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-				avgLoopTime += loopTimeValue
-				avgLoopTime /= 2
+				totalLoopTime += loopTimeValue
+				loopCount++
+				opMode.telemetry.addData("Current Execution", "To End Point")
+				opMode.telemetry.addData("Position", currentPosition.toString())
+				opMode.telemetry.addData("Target Point", finalPathPoint.toString())
+				opMode.telemetry.addLine("Distance: ${distance}in")
+				opMode.telemetry.addLine("--------------------")
 				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-				opMode.telemetry.addLine("Average Loop Time: ${avgLoopTime}ms")
+				opMode.telemetry.addLine("Average Loop Time: ${loopTimeValue / loopCount}ms")
 
 				opMode.telemetry.update()
 				loopTime?.reset()
@@ -307,6 +330,13 @@ class Movement(
 		} else {
 			throw IllegalArgumentException("Tracking is not set")
 		}
+	}
+
+	/*
+	 * Get the distance from the current target point
+	 */
+	fun getDistanceFromTarget(): Double {
+		return distanceFromTarget.get()
 	}
 
 	/**

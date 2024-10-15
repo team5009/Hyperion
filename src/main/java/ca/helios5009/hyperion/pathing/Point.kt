@@ -1,5 +1,6 @@
 package ca.helios5009.hyperion.pathing
 
+import android.annotation.SuppressLint
 import ca.helios5009.hyperion.misc.relativeRadian
 import java.util.Objects
 
@@ -47,7 +48,8 @@ class Point(var x: Double, var y: Double, rot: Double, val event: String = "_") 
 		return Point(x, y, rot * 180/Math.PI, event)
 	}
 
-	override fun toString() = "Point(x=$x, y=$y, rot=$rot)"
+	@SuppressLint("DefaultLocale")
+	override fun toString() = String.format("x: %.2f, y: %.2f, rot: %.2f", x, y, rot)
 
 	override fun equals(other: Any?): Boolean {
 		if (other is Point) {

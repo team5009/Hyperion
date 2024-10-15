@@ -56,5 +56,8 @@ fun generateBezier(pt0: Point, ct0: Point, ct1: Point, pt1: Point): MutableList<
 }
 
 fun cosineLaw(a: Double, b: Double, c: Double): Double {
+	if (a == 0.0 || b == 0.0) {
+		return 0.0
+	}
 	return acos(((a * a) + (b * b) - (c * c)) / (2 * a * b))
 }

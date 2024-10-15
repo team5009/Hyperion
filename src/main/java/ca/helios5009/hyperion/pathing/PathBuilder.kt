@@ -23,9 +23,10 @@ class PathBuilder(
 	 * Start the path with the origin point.
 	 * @param origin The origin point of the path.
 	 */
-	fun start(origin: Point) {
+	fun start(origin: Point): PathBuilder {
 		movement.listener.call(origin.event)
 		movement.setPosition(origin)
+		return this
 	}
 
 	/**
@@ -33,8 +34,9 @@ class PathBuilder(
 	 * @param point The point to move to.
 	 */
 	@Deprecated("Only use Continuous")
-	fun line(point: Point) {
+	fun line(point: Point): PathBuilder {
 		movement.run(listOf(point))
+		return this
 	}
 
 //	@Suppress("Not implemented properly")
@@ -56,8 +58,9 @@ class PathBuilder(
 	 *
 	 * @param points The list of points to move to.
 	 */
-	fun segment(vararg points: Point) {
+	fun segment(vararg points: Point): PathBuilder {
 		movement.run(points.asList())
+		return this
 	}
 
 	/**
@@ -73,8 +76,9 @@ class PathBuilder(
 	 *
 	 * @param points The list of points to move to.
 	 */
-	fun segment(points: List<Point>) {
+	fun segment(points: List<Point>): PathBuilder {
 		movement.run(points)
+		return this
 	}
 
 	/**
@@ -87,19 +91,52 @@ class PathBuilder(
 	}
 
 	/**
+	 * Alternate to end. This will hold the bot's position till the end of autonomous.
+	 * Useful if there's a chance you get hit out of parking or something.
+	 * @param event The event to call when the path is done.
+	 */
+	fun endHold(event: String = "_") {
+		val loopTime = if (movement.debug) {
+			ElapsedTime()
+		} else {
+			null
+		}
+		var totalLoopTime = 0.0
+		var loopCount = 0
+		movement.listener.call(event)
+		val currentPosition = movement.getPosition()
+		while(movement.opMode.opModeIsActive()) {
+			val distance = movement.goto(currentPosition, true)
+			if (movement.debug) {
+				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+				totalLoopTime += loopTimeValue
+				loopCount++
+				movement.opMode.telemetry.addLine("Waiting for Autonomous to end")
+				movement.opMode.telemetry.addLine("Distance: ${distance}in")
+				movement.opMode.telemetry.addLine("Loop : ${loopTimeValue}ms")
+				movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
+				movement.opMode.telemetry.update()
+				loopTime?.reset()
+			}
+		}
+	}
+
+
+	/**
 	 * Wait for a certain amount of time. Bot will hold it's position as much as it can.
 	 * This is useful for waiting for other bots to move.
 	 * By holding it's position, any other bots that are pushing it will not affect it's position.
 	 * @param time The time to wait in milliseconds.
 	 * @param event The event to call when the time is up.
 	 */
-	fun wait(time: Double, event: String = "_") {
+	fun wait(time: Double, event: String = "_"): PathBuilder {
 		val loopTime = if (movement.debug) {
 			ElapsedTime()
 		} else {
 			null
 		}
-		var avgLoopTime = 0.0
+		var totalLoopTime = 0.0
+		var loopCount = 0
 		movement.listener.call(event)
 		val currentPosition = movement.getPosition()
 		val timer = ElapsedTime()
@@ -107,16 +144,17 @@ class PathBuilder(
 			val distance = movement.goto(currentPosition, true)
 			if (movement.debug) {
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-				avgLoopTime += loopTimeValue
-				avgLoopTime /= 2
+				totalLoopTime += loopTimeValue
+				loopCount++
 				movement.opMode.telemetry.addLine("Waiting for ${time}ms")
-				movement.opMode.telemetry.addLine("Distance ${distance}in")
-				movement.opMode.telemetry.addLine("Loop Time ${loopTimeValue}ms")
-				movement.opMode.telemetry.addLine("Average Loop Time ${avgLoopTime}ms")
+				movement.opMode.telemetry.addLine("Distance: ${distance}in")
+				movement.opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+				movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 				movement.opMode.telemetry.update()
 				loopTime?.reset()
 			}
 		}
+		return this
 	}
 
 	/**
@@ -126,13 +164,14 @@ class PathBuilder(
 	 * @param message The message to wait for.
 	 * @param event The event to call when the message is called.
 	 */
-	fun wait(message: String, event: String = "_") {
+	fun wait(message: String, event: String = "_"): PathBuilder {
 		val loopTime = if (movement.debug) {
 			ElapsedTime()
 		} else {
 			null
 		}
-		var avgLoopTime = 0.0
+		var totalLoopTime = 0.0
+		var loopCount = 0
 		movement.listener.call(event)
 		val currentPosition = movement.getPosition()
 		if (message.startsWith('_')) {
@@ -142,12 +181,12 @@ class PathBuilder(
 
 				if (movement.debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-					avgLoopTime += loopTimeValue
-					avgLoopTime /= 2
+					totalLoopTime += loopTimeValue
+					loopCount++
 					movement.opMode.telemetry.addLine("Waiting for 1500ms")
-					movement.opMode.telemetry.addLine("Distance ${distance}in")
-					movement.opMode.telemetry.addLine("Loop Time ${loopTimeValue}ms")
-					movement.opMode.telemetry.addLine("Average Loop Time ${avgLoopTime}ms")
+					movement.opMode.telemetry.addLine("Distance: ${distance}in")
+					movement.opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+					movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					movement.opMode.telemetry.update()
 					loopTime?.reset()
 				}
@@ -157,17 +196,18 @@ class PathBuilder(
 				val distance = movement.goto(currentPosition, true)
 				if (movement.debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-					avgLoopTime += loopTimeValue
-					avgLoopTime /= 2
+					totalLoopTime += loopTimeValue
+					loopCount++
 					movement.opMode.telemetry.addData("Waiting for", message)
-					movement.opMode.telemetry.addLine("Distance ${distance}in")
-					movement.opMode.telemetry.addLine("Loop Time ${loopTimeValue}ms")
-					movement.opMode.telemetry.addLine("Average Loop Time ${avgLoopTime}ms")
+					movement.opMode.telemetry.addLine("Distance: ${distance}in")
+					movement.opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+					movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					movement.opMode.telemetry.update()
 					loopTime?.reset()
 				}
 			}
 		}
+		return this
 	}
 
 }
