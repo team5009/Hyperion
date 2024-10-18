@@ -27,7 +27,7 @@ class ProportionalController(
 	 * @return desired output power.
 	 * @see Movement.goto
 	 */
-	fun getOutput(inputError: Double): Double {
+	fun update(inputError: Double): Double {
 		var error = inputError
 		val dV = cycleTime.seconds() * accelLimit
 //		var output: Double

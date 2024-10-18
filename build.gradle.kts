@@ -12,7 +12,7 @@ plugins {
 
 android {
 	namespace = "ca.helios5009.Hyperion"
-	compileSdk = 34
+	compileSdk = 29
 
 	defaultConfig {
 		minSdk = 24

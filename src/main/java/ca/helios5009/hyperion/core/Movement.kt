@@ -1,5 +1,6 @@
 package ca.helios5009.hyperion.core
 
+import android.annotation.SuppressLint
 import ca.helios5009.hyperion.hardware.Odometry
 import ca.helios5009.hyperion.hardware.Otos
 import ca.helios5009.hyperion.misc.constants.PositionTracking
@@ -51,6 +52,7 @@ class Movement(
 	private lateinit var strafeController : ProportionalController
 	private lateinit var rotateController : ProportionalController
 
+
 	private var deadwheels: Odometry? = null
 	private var otos: Otos? = null
 
@@ -58,13 +60,25 @@ class Movement(
 	private var currentTargetPoint: Point = Point(0.0, 0.0, 0.0)
 	private var path: List<Point> = listOf()
 	private var currentPathIndex = 0;
+
 	private var currentPosition = Point(0.0, 0.0, 0.0)
+	private var previousPosition = Point(0.0, 0.0, 0.0)
 
 	private var distanceFromTarget = AtomicReference(0.0)
-	
 
+	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
+	private var previousVelocity: Double = 0.0
+	var velocity: Double = 0.0
+	var acceleration: Double = 0.0
 
-
+	/**
+	 * Run the path that is given to the robot.
+	 * This method will move the robot to the points that are given in the path.
+	 * @param points The list of points that the robot should move to
+	 *
+	 * @see Point
+	 * @see PathBuilder
+	 */
 	fun run(points: List<Point>) {
 		path = points // Set the path to the list of points
 		val finalPoint = points.last() // Get the final point in the path
@@ -96,11 +110,11 @@ class Movement(
 		while (currentPathIndex < path.size - 1) { // Loop through the path but leave the last point
 			currentTargetPoint =
 				points[currentPathIndex] // Set the current target point to the current point in the path
-			currentPosition =
-				getPosition() // Get the current position of the robot // Set the path index to the current point in the path
+			previousPosition = currentPosition.clone() // Set the previous position to the current position
+			currentPosition = getPosition() // Get the current position of the robot
 			var angleOfPath = 0.0 // Initialize the angle of the path
 			val vectorTolerance = if (currentTargetPoint.useManualTorence) {
-				currentTargetPoint.tolerance // Use the manual tolerance if it is set
+				currentTargetPoint.getTolerance() // Use the manual tolerance if it is set
 			} else {
 				val pointAhead =
 					path[currentPathIndex + 1] // Get the point that is ahead of the current point
@@ -126,7 +140,6 @@ class Movement(
 			}
 
 			listener.call(currentTargetPoint.event) // Call events
-			resetController() // Reset the PID controllers
 			do {
 				val distance =
 					goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
@@ -139,8 +152,8 @@ class Movement(
 					opMode.telemetry.addData("Position", currentPosition.toString())
 					opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
-					opMode.telemetry.addLine("Distance: ${distance}in")
-					opMode.telemetry.addLine("Angle of Path: $angleOfPath")
+					opMode.telemetry.addData("Angle of Path", angleOfPath)
+
 					opMode.telemetry.addLine("--------------------")
 					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
 					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
@@ -164,12 +177,20 @@ class Movement(
 	 * Calculates the power needed to give to each motors (ONLY FOR [MECANUM](<en.wikipedia.org/wiki/Mecanum_wheel>) WHEELS)
 	 * @param point The point to move the robot to
 	 * @param endPoint If it is the end point
+	 * @return The distance from the target point in inches
 	 *
 	 * @see Point
-	 * @see ProportionalController.getOutput
+	 * @see ProportionalController.update
 	 */
+	@SuppressLint("DefaultLocale")
 	fun goto(point: Point, endPoint: Boolean = false): Double {
-		currentPosition = getPosition() // Get the current position of the robot
+		previousPosition = currentPosition.clone() // Set the previous position to the current position
+		previousVelocity = velocity // Set the previous velocity to the current velocity
+		currentPosition = getPosition() // Get the current position of the robot // Set the path index to the current point in the path
+		calculateVelocity() // Calculate the velocity of the robot
+		calculateAcceleration() // Calculate the acceleration of the robot
+		kinematicsTimer.reset() // Reset the timer to calculate the velocity
+
 
 		// Calculate the error between the target and the current position
 		val error = euclideanDistance(point, currentPosition)
@@ -182,20 +203,24 @@ class Movement(
 		val deltaRot = point.rot - currentPosition.rot
 
 		val theta = currentPosition.rot
-		// Calculate the delta x amount that the robot should move
-		val dx = deltaX * cos(theta) - deltaY * sin(theta)
-		// Calculate the delta y amount that the robot should move
-		val dy = deltaX * sin(theta) + deltaY * cos(theta)
+		// Calculate the amount of drive error that the robot should move
+		val driveError = deltaX * cos(theta) - deltaY * sin(theta)
+		// Calculate the amount of strafe error that the robot should move
+		val strafeError = deltaX * sin(theta) + deltaY * cos(theta)
 
-		val drive = driveController.getOutput(dx)
-		val strafe = -strafeController.getOutput(dy)
-		val rotate = -rotateController.getOutput(deltaRot)
+		val drive = driveController.update(driveError)
+		val strafe = -strafeController.update(strafeError)
+		val rotate = -rotateController.update(deltaRot)
 		bot.move(drive, strafe, rotate)
 		if (debug) {
 			opMode.telemetry.addData("Drive", drive)
 			opMode.telemetry.addData("Strafe", strafe)
 			opMode.telemetry.addData("Rotate", rotate)
 			opMode.telemetry.addData("Speed Factor", speedFactor)
+			opMode.telemetry.addLine("--------------------")
+			opMode.telemetry.addLine("Distance: ${error}in")
+			opMode.telemetry.addLine(String.format("Velocity: %.2f in/s", velocity))
+			opMode.telemetry.addLine(String.format("Acceleration: %.2f in/s^2", acceleration))
 			opMode.telemetry.addLine("--------------------")
 		}
 		return error
@@ -222,7 +247,6 @@ class Movement(
 		var inDrivePosition = false
 		var inStrafePosition = false
 		var inRotatePosition = false
-		resetController()
 		while (opMode.opModeIsActive()) {
 			val distance = goto(finalPathPoint, true)
 			distanceFromTarget.set(distance)
@@ -318,7 +342,7 @@ class Movement(
 		} else if (tracking == PositionTracking.DEADWHEELS && deadwheels != null) {
 			deadwheels!!.calculate()
 		} else {
-			throw IllegalArgumentException("Tracking is not set")
+			throw IllegalArgumentException("Tracking is not set properly")
 		}
 	}
 
@@ -330,6 +354,19 @@ class Movement(
 		} else {
 			throw IllegalArgumentException("Tracking is not set")
 		}
+	}
+
+
+	private fun calculateVelocity() {
+		val deltaTime = kinematicsTimer.seconds()
+		val deltaPosition = euclideanDistance(currentPosition, previousPosition)
+		velocity = deltaPosition / deltaTime
+	}
+
+	private fun calculateAcceleration() {
+		val deltaTime = kinematicsTimer.seconds()
+		val deltaVelocity = velocity - previousVelocity
+		acceleration = deltaVelocity / deltaTime
 	}
 
 	/*

@@ -1,6 +1,10 @@
 package ca.helios5009.hyperion.pathing
 
+import ca.helios5009.hyperion.core.Motors
 import ca.helios5009.hyperion.core.Movement
+import ca.helios5009.hyperion.misc.constants.PositionTracking
+import ca.helios5009.hyperion.misc.events.EventListener
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 
 /**
@@ -10,21 +14,31 @@ import com.qualcomm.robotcore.util.ElapsedTime
  *
  * ALWAYS call start before running any other commands. AND call end after all other commands.
  *
- * @param movement The Movement object that is used to move the robot.
- * @constructor Create a new HyperionPath object.
+ *
+ * @param opMode The LinearOpMode object that is running the autonomous.
+ * @param listener The EventListener object that is listening for events.
+ * @param bot The Motors object that is controlling the motors.
+ * @param tracking The PositionTracking object that is tracking the position of the robot.
+ * @param debug A boolean that will enable debug mode if true.
  *
  * @see Movement
  * @author Gilbert O.
 */
 class PathBuilder(
-	private val movement: Movement
+	private val opMode: LinearOpMode,
+	private val listener: EventListener,
+	bot: Motors,
+	tracking: PositionTracking,
+	private val debug: Boolean = false
 ) {
+
+	private val movement: Movement = Movement(opMode, listener, bot, tracking, debug)
 	/**
 	 * Start the path with the origin point.
 	 * @param origin The origin point of the path.
 	 */
 	fun start(origin: Point): PathBuilder {
-		movement.listener.call(origin.event)
+		listener.call(origin.event)
 		movement.setPosition(origin)
 		return this
 	}
@@ -86,7 +100,7 @@ class PathBuilder(
 	 * @param event The event to call when the path is done.
 	 */
 	fun end(event: String = "_") {
-		movement.listener.call(event)
+		listener.call(event)
 		movement.stopMovement()
 	}
 
@@ -96,26 +110,26 @@ class PathBuilder(
 	 * @param event The event to call when the path is done.
 	 */
 	fun endHold(event: String = "_") {
-		val loopTime = if (movement.debug) {
+		val loopTime = if (debug) {
 			ElapsedTime()
 		} else {
 			null
 		}
 		var totalLoopTime = 0.0
 		var loopCount = 0
-		movement.listener.call(event)
+		listener.call(event)
 		val currentPosition = movement.getPosition()
-		while(movement.opMode.opModeIsActive()) {
+		while(opMode.opModeIsActive()) {
 			val distance = movement.goto(currentPosition, true)
-			if (movement.debug) {
+			if (debug) {
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 				totalLoopTime += loopTimeValue
 				loopCount++
-				movement.opMode.telemetry.addLine("Waiting for Autonomous to end")
-				movement.opMode.telemetry.addLine("Distance: ${distance}in")
-				movement.opMode.telemetry.addLine("Loop : ${loopTimeValue}ms")
-				movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
-				movement.opMode.telemetry.update()
+				opMode.telemetry.addLine("Waiting for Autonomous to end")
+				opMode.telemetry.addLine("Distance: ${distance}in")
+				opMode.telemetry.addLine("Loop : ${loopTimeValue}ms")
+				opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
+				opMode.telemetry.update()
 				loopTime?.reset()
 			}
 		}
@@ -130,27 +144,27 @@ class PathBuilder(
 	 * @param event The event to call when the time is up.
 	 */
 	fun wait(time: Double, event: String = "_"): PathBuilder {
-		val loopTime = if (movement.debug) {
+		val loopTime = if (debug) {
 			ElapsedTime()
 		} else {
 			null
 		}
 		var totalLoopTime = 0.0
 		var loopCount = 0
-		movement.listener.call(event)
+		listener.call(event)
 		val currentPosition = movement.getPosition()
 		val timer = ElapsedTime()
-		while(movement.opMode.opModeIsActive() && timer.milliseconds() < time) {
+		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
 			val distance = movement.goto(currentPosition, true)
-			if (movement.debug) {
+			if (debug) {
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 				totalLoopTime += loopTimeValue
 				loopCount++
-				movement.opMode.telemetry.addLine("Waiting for ${time}ms")
-				movement.opMode.telemetry.addLine("Distance: ${distance}in")
-				movement.opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-				movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
-				movement.opMode.telemetry.update()
+				opMode.telemetry.addLine("Waiting for ${time}ms")
+				opMode.telemetry.addLine("Distance: ${distance}in")
+				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+				opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
+				opMode.telemetry.update()
 				loopTime?.reset()
 			}
 		}
@@ -165,49 +179,57 @@ class PathBuilder(
 	 * @param event The event to call when the message is called.
 	 */
 	fun wait(message: String, event: String = "_"): PathBuilder {
-		val loopTime = if (movement.debug) {
+		val loopTime = if (debug) {
 			ElapsedTime()
 		} else {
 			null
 		}
 		var totalLoopTime = 0.0
 		var loopCount = 0
-		movement.listener.call(event)
+		listener.call(event)
 		val currentPosition = movement.getPosition()
 		if (message.startsWith('_')) {
 			val timer = ElapsedTime()
-			while(movement.opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
+			while(opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
 				val distance = movement.goto(currentPosition, true)
 
-				if (movement.debug) {
+				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					totalLoopTime += loopTimeValue
 					loopCount++
-					movement.opMode.telemetry.addLine("Waiting for 1500ms")
-					movement.opMode.telemetry.addLine("Distance: ${distance}in")
-					movement.opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-					movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
-					movement.opMode.telemetry.update()
+					opMode.telemetry.addLine("Waiting for 1500ms")
+					opMode.telemetry.addLine("Distance: ${distance}in")
+					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
+					opMode.telemetry.update()
 					loopTime?.reset()
 				}
 			}
 		} else {
-			while(movement.opMode.opModeIsActive() && !movement.listener.isInQueue(message)) {
+			while(opMode.opModeIsActive() && !listener.isInQueue(message)) {
 				val distance = movement.goto(currentPosition, true)
-				if (movement.debug) {
+				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					totalLoopTime += loopTimeValue
 					loopCount++
-					movement.opMode.telemetry.addData("Waiting for", message)
-					movement.opMode.telemetry.addLine("Distance: ${distance}in")
-					movement.opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-					movement.opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
-					movement.opMode.telemetry.update()
+					opMode.telemetry.addData("Waiting for", message)
+					opMode.telemetry.addLine("Distance: ${distance}in")
+					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
+					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
+					opMode.telemetry.update()
 					loopTime?.reset()
 				}
 			}
 		}
 		return this
+	}
+
+	fun getVelocity(): Double {
+		return movement.velocity
+	}
+
+	fun getAcceleration(): Double {
+		return movement.acceleration
 	}
 
 }

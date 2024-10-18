@@ -21,11 +21,11 @@ class Motors(
 	backLeft: String,
 	backRight: String
 ) {
-	val powerRatio = AtomicReference(1.0) // The max power of the motors
-	private val fl: HyperionMotor = HyperionMotor(hardwareMap[frontLeft] as DcMotorEx)
-	private val fr: HyperionMotor = HyperionMotor(hardwareMap[frontRight] as DcMotorEx)
-	private val bl: HyperionMotor = HyperionMotor(hardwareMap[backLeft] as DcMotorEx)
-	private val br: HyperionMotor = HyperionMotor(hardwareMap[backRight] as DcMotorEx)
+	private val powerRatio = AtomicReference(1.0) // The max power of the motors
+	private val fl: HyperionMotor = HyperionMotor(hardwareMap, frontLeft)
+	private val fr: HyperionMotor = HyperionMotor(hardwareMap, frontRight)
+	private val bl: HyperionMotor = HyperionMotor(hardwareMap, backLeft)
+	private val br: HyperionMotor = HyperionMotor(hardwareMap, backRight)
 	init {
 		val motorList = arrayOf(fl, fr, bl, br)
 		motorList[0].motor.direction = DcMotorSimple.Direction.REVERSE
@@ -55,17 +55,22 @@ class Motors(
 		br.setPower((drive + strafe - rotate) / max)
 	}
 
+	/**
+	 * Set the power ratio of the motors.
+	 * @param ratio The ratio of the power of the motors.
+	 */
+	fun setPowerRatio(ratio: Double) {
+		if (ratio <= 0 || ratio > 1) throw IllegalArgumentException("Power ratio must be between 0 and 1")
+		powerRatio.set(ratio)
+	}
+
 
 	/**
 	 * Given a gamepad, move the robot.
 	 * @param gamepad The gamepad to get the values from.
 	 * @see move for non-gamepad controls.
 	 */
-	fun gamepadMove(gamepad: Gamepad) {
-		val drive = -gamepad.left_stick_y.toDouble()
-		val strafe = gamepad.left_stick_x.toDouble()
-		val rotate = gamepad.right_stick_x.toDouble()
-
+	fun gamepadMove(drive: Double, strafe: Double, rotate: Double) {
 		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
 		val max = maxOf(powerRatio.get(), maxPower)
 

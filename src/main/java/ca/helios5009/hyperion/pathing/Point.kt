@@ -13,7 +13,7 @@ import java.util.Objects
  */
 class Point(var x: Double, var y: Double, rot: Double, val event: String = "_") {
 	var rot = relativeRadian(rot * Math.PI / 180)
-	var tolerance = 1.0
+	private var tolerance = 1.0
 	var type = PointType.Global
 	var useError = false
 	var useManualTorence = false
@@ -22,6 +22,7 @@ class Point(var x: Double, var y: Double, rot: Double, val event: String = "_") 
 	 * Local points are relative to the current position of the robot
 	 * @return The point
 	 */
+	@Deprecated("Breaks segment algorithm")
 	fun setLocal(): Point {
 		type = PointType.Relative
 		return this
@@ -39,14 +40,20 @@ class Point(var x: Double, var y: Double, rot: Double, val event: String = "_") 
 	}
 
 	fun setTolerance(tolerence: Double = 1.0): Point {
+		if (tolerence < 0) {
+			throw IllegalArgumentException("Tolerance cannot be less than 0")
+		}
 		this.tolerance = tolerence
 		useManualTorence = true
 		return this
 	}
 
+	fun getTolerance() = tolerance
+
 	fun clone(): Point {
 		return Point(x, y, rot * 180/Math.PI, event)
 	}
+
 
 	@SuppressLint("DefaultLocale")
 	override fun toString() = String.format("x: %.2f, y: %.2f, rot: %.2f", x, y, rot)
@@ -61,6 +68,8 @@ class Point(var x: Double, var y: Double, rot: Double, val event: String = "_") 
 	override fun hashCode() = Objects.hash(x, y, rot)
 
 }
+
+
 
 enum class PointType {
 	Global, Relative

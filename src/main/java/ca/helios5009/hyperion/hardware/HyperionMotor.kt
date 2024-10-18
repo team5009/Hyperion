@@ -2,6 +2,7 @@ package ca.helios5009.hyperion.hardware
 
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
+import com.qualcomm.robotcore.hardware.HardwareMap
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit
 import kotlin.math.abs
 
@@ -18,11 +19,13 @@ import kotlin.math.abs
  * @author Joshua
  * @see DcMotorEx
  */
-class HyperionMotor(val motor: DcMotorEx) {
+class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	private var power = 0.0
-	var powerTolerence = 0.01
+	private var powerTolerance = 0.01
+	val motor = hardwareMap[motorName] as DcMotorEx
+
 	fun setPower(power: Double) {
-		if (abs(power - this.power) > powerTolerence) {
+		if (abs(power - this.power) > powerTolerance) {
 			this.power = power
 			motor.power = power
 		}
@@ -68,11 +71,40 @@ class HyperionMotor(val motor: DcMotorEx) {
 		return motor.isOverCurrent
 	}
 
+	/* Setters */
+
+	/**
+	 * Sets zero power behavior for the motor.
+	 * @param behavior the behavior to set.
+	 */
+	fun setZeroPowerBehavior(behavior: DcMotor.ZeroPowerBehavior) {
+		motor.zeroPowerBehavior = behavior
+	}
+
+	/**
+	 * Sets the power differential that will be considered the same power.
+	 * @param tolerance the power tolerance to set.
+	 */
+	fun setPowerTolerance(tolerance: Double) {
+		if (tolerance < 0) {
+			throw IllegalArgumentException("Tolerance must be greater than 0")
+		}
+		powerTolerance = tolerance
+	}
+
+	/* Utility */
+
+	/**
+	 * Resets the encoder for this motor.
+	 */
 	fun resetEncoder() {
 		motor.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
 		motor.mode = DcMotor.RunMode.RUN_USING_ENCODER
 	}
 
+	/**
+	 * Stops the motor.
+	 */
 	fun stop() {
 		this.power = 0.0
 	}

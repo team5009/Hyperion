@@ -1,7 +1,9 @@
 package ca.helios5009.hyperion.misc.events
 
+import com.qualcomm.robotcore.util.ElapsedTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicReference
 
@@ -49,7 +51,7 @@ class EventListener {
 	 * @param event The event to trigger
 	 */
 	fun call(event: String) {
-		if (event.startsWith("_")) {
+		if (event.startsWith("_") || event.isBlank()) {
 			return
 		}
 
@@ -81,7 +83,7 @@ class EventListener {
 	 */
 	fun isInQueue(event: String): Boolean {
 		synchronized(queue) {
-			return queue.contains(event)
+			return queue.remove(event)
 		}
 	}
 
