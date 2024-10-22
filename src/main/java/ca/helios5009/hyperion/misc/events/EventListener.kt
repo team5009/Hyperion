@@ -1,11 +1,8 @@
 package ca.helios5009.hyperion.misc.events
 
-import com.qualcomm.robotcore.util.ElapsedTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * EventListener class

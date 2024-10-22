@@ -4,12 +4,12 @@ import android.annotation.SuppressLint
 import ca.helios5009.hyperion.hardware.Odometry
 import ca.helios5009.hyperion.hardware.Otos
 import ca.helios5009.hyperion.misc.constants.PositionTracking
-import ca.helios5009.hyperion.misc.euclideanDistance
-import ca.helios5009.hyperion.pathing.Point
-import ca.helios5009.hyperion.pathing.PointType
 import ca.helios5009.hyperion.misc.cosineLaw
+import ca.helios5009.hyperion.misc.euclideanDistance
 import ca.helios5009.hyperion.misc.events.EventListener
 import ca.helios5009.hyperion.pathing.PathBuilder
+import ca.helios5009.hyperion.pathing.Point
+import ca.helios5009.hyperion.pathing.PointType
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 import java.util.concurrent.atomic.AtomicReference

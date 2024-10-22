@@ -1,8 +1,11 @@
 package ca.helios5009.hyperion.core
 
-import ca.helios5009.hyperion.pathing.Point
 import ca.helios5009.hyperion.misc.FileReader
+import ca.helios5009.hyperion.misc.constants.PositionTracking
+import ca.helios5009.hyperion.misc.events.EventListener
 import ca.helios5009.hyperion.pathing.PathBuilder
+import ca.helios5009.hyperion.pathing.Point
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import java.io.File
 
 /**
@@ -11,18 +14,27 @@ import java.io.File
  *
  * Given a path, the HyperionTest will read the file and run the commands 1 by 1.
  *
- * @param movement The Movement object that is used to move the robot.
+ * @param opMode The LinearOpMode that the HyperionTest is running on.
+ * @param listener The EventListener that the HyperionTest is using.
+ * @param bot The Motors that the HyperionTest is using.
+ * @param tracking The PositionTracking that the HyperionTest is using.
  * @param path The path to the file that contains the commands.
  * @constructor Create a new HyperionTest object.
  *
  * @see Movement
  * @see FileReader
  */
-class HyperionTest(movement: Movement, private val path: String) {
-	private val HyperionPath = PathBuilder(movement)
+class HyperionTest(
+	opMode: LinearOpMode,
+	listener: EventListener,
+	bot: Motors,
+	tracking: PositionTracking,
+	path: String
+) {
+	private val pathBuilder = PathBuilder(opMode, listener, bot, tracking, true)
+	private val file = File(path)
 
 	fun run() {
-		val file = File(path)
 		var isSegment = false
 		var segmentLength: Byte = 0
 		var currentSegmentPoint: Byte = 0
@@ -35,7 +47,7 @@ class HyperionTest(movement: Movement, private val path: String) {
 				val command = splitCommand.removeFirst()
 				val args = splitCommand.removeFirst()
 				if (command == "end") {
-					HyperionPath.end(args)
+					pathBuilder.end(args)
 					break;
 				}
 
@@ -44,7 +56,7 @@ class HyperionTest(movement: Movement, private val path: String) {
 						val eventCall = splitCommand.removeFirst()
 						val pointSplit = args.split(",")
 						val point = Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall)
-						HyperionPath.start(point)
+						pathBuilder.start(point)
 					}
 					"segment" -> {
 						isSegment = true
@@ -53,9 +65,9 @@ class HyperionTest(movement: Movement, private val path: String) {
 					"wait" -> {
 						val eventCall = splitCommand.removeFirst()
 						if (args[0].isDigit()) {
-							HyperionPath.wait(convertTime(args), eventCall)
+							pathBuilder.wait(convertTime(args), eventCall)
 						} else {
-							HyperionPath.wait(args, eventCall)
+							pathBuilder.wait(args, eventCall)
 						}
 					}
 					else -> {
@@ -92,7 +104,7 @@ class HyperionTest(movement: Movement, private val path: String) {
 				currentSegment.add(point)
 				currentSegmentPoint++
 				if (currentSegmentPoint == segmentLength) {
-					HyperionPath.segment(currentSegment)
+					pathBuilder.segment(currentSegment)
 					currentSegmentPoint = 0
 					currentSegment.clear()
 					isSegment = false

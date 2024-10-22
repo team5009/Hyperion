@@ -20,7 +20,7 @@ class ProportionalController(
 	}
 
 	/**
-	 * Determines power required to obtain the desired setpoint value based on new input value.
+	 * Determines power required to obtain the desired set point value based on new input value.
 	 * Uses proportional gain, and limits rate of change of output, as well as max output.
 	 * Make sure deadband is set to be smaller than the tolerance.
 	 * @param inputError  Current live control input value (from sensors)
@@ -29,7 +29,8 @@ class ProportionalController(
 	 */
 	fun update(inputError: Double): Double {
 		var error = inputError
-		val dV = cycleTime.seconds() * accelLimit
+		val absError = abs(error)
+		val dV = cycleTime.seconds() * accelLimit // limit acceleration
 //		var output: Double
 
 		// normalize to +/- PI if we are controlling heading
@@ -37,20 +38,20 @@ class ProportionalController(
 			while (error > Math.PI) error -= 2 * Math.PI
 			while (error <= -Math.PI) error += 2 * Math.PI
 		}
-		inPosition = abs(error) < tolerance
+		inPosition = absError < tolerance
 		// Prevent any very slow motor output accumulation
-		val output = if (abs(error) <= deadband) {
+		val output = if (absError <= deadband) {
 			0.0
 		} else {
 			// calculate output power using gain and clip it to the limits
 			var output = error * gain
 
 			// Now limit rate of change of output (acceleration)
-			if (abs(output) > abs(lastOutput)) {
+			if (absError > abs(lastOutput)) { // If the output is increasing
 				if (output - lastOutput > dV) {
-					output = lastOutput + dV
+					output = lastOutput + dV // limit the rate of increase
 				} else if (output - lastOutput < -dV) {
-					output = lastOutput - dV
+					output = lastOutput - dV // limit the rate of decrease
 				}
 			}
 			output

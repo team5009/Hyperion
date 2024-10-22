@@ -2,9 +2,7 @@ package ca.helios5009.hyperion.core
 
 import ca.helios5009.hyperion.hardware.HyperionMotor
 import com.qualcomm.robotcore.hardware.DcMotor
-import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
-import com.qualcomm.robotcore.hardware.Gamepad
 import com.qualcomm.robotcore.hardware.HardwareMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs

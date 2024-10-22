@@ -25,7 +25,7 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	val motor = hardwareMap[motorName] as DcMotorEx
 
 	fun setPower(power: Double) {
-		if (abs(power - this.power) > powerTolerance) {
+		if (abs(power - this.power) > powerTolerance || power == 0.0) {
 			this.power = power
 			motor.power = power
 		}
