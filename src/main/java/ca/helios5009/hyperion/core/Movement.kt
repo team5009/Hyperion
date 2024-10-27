@@ -13,8 +13,11 @@ import ca.helios5009.hyperion.pathing.PointType
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.sign
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Class that handles the movement of the robot
@@ -211,7 +214,8 @@ class Movement(
 		val drive = driveController.update(driveError)
 		val strafe = -strafeController.update(strafeError)
 		val rotate = -rotateController.update(deltaRot)
-		bot.move(drive, strafe, rotate)
+		val rotationCorrection = sign(rotate) * sqrt(abs(rotate))
+		bot.move(drive, strafe, rotationCorrection)
 		if (debug) {
 			opMode.telemetry.addData("Drive", drive)
 			opMode.telemetry.addData("Strafe", strafe)

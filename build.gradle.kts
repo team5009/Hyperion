@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.ir.backend.js.compile
+
 //import com.android.build.gradle.tasks.MergeSourceSetFolders
 //import com.nishtahir.CargoBuildTask
 //import com.nishtahir.CargoExtension
@@ -27,9 +29,15 @@ android {
 				getDefaultProguardFile("proguard-android-optimize.txt"),
 				"proguard-rules.pro"
 			)
-			ndk {
-				abiFilters.addAll(listOf("armeabi-v7a"))
-			}
+//			ndk {
+//				abiFilters.addAll(listOf("armeabi-v7a"))
+//			}
+		}
+	}
+
+	externalNativeBuild {
+		ndkBuild {
+//			path = file("jni/libs/Android.mk")
 		}
 	}
 
@@ -63,6 +71,9 @@ dependencies {
 	implementation("androidx.core:core-ktx:1.5.0")
 	implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.6.10"))
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+//	api(fileTree(mapOf("dir" to "libs", "include" to "*.jar")))
+
 }
 
 //project.afterEvaluate{

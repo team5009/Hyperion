@@ -15,10 +15,10 @@ class CommandsParse {
 		try {
 //			System.load(library)
 			System.loadLibrary("hyperion")
+			RobotLog.vv("Hyperion", "Hyperion Library Loaded")
 		} catch (e: UnsatisfiedLinkError) {
 			RobotLog.ee("Hyperion", "Error loading Hyperion Library: $e")
 		}
-		RobotLog.vv("Hyperion", "Hyperion Library Loaded")
 //		System.loadLibrary("hyperion")
 	}
 
