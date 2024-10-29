@@ -1,7 +1,7 @@
 package ca.helios5009.hyperion.core
 
 import ca.helios5009.hyperion.misc.FileReader
-import ca.helios5009.hyperion.misc.constants.PositionTracking
+import ca.helios5009.hyperion.misc.Odometry
 import ca.helios5009.hyperion.misc.events.EventListener
 import ca.helios5009.hyperion.pathing.PathBuilder
 import ca.helios5009.hyperion.pathing.Point
@@ -24,11 +24,11 @@ import java.io.File
  * @see Movement
  * @see FileReader
  */
-class HyperionTest(
+class HyperionTest<T: Odometry>(
 	opMode: LinearOpMode,
 	listener: EventListener,
 	bot: Motors,
-	tracking: PositionTracking,
+	tracking: T,
 	path: String
 ) {
 	private val pathBuilder = PathBuilder(opMode, listener, bot, tracking, true)

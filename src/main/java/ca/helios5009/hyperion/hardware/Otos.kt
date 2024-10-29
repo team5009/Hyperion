@@ -1,5 +1,6 @@
 package ca.helios5009.hyperion.hardware
 
+import ca.helios5009.hyperion.misc.Odometry
 import ca.helios5009.hyperion.pathing.Point
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS
 import com.qualcomm.robotcore.hardware.HardwareMap
@@ -9,8 +10,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 class Otos(
 	hardwareMap: HardwareMap,
 	name: String,
-	offset: Point,
-) {
+	offset: Point = Point(0.0, 0.0, 0.0)
+): Odometry {
 	val otos = hardwareMap.get(name) as SparkFunOTOS
 
 	init {
@@ -30,12 +31,12 @@ class Otos(
 		otos.resetTracking()
 	}
 
-	fun getPosition(): Point {
+	override fun getPosition(): Point {
 		val pose = otos.position
 		return Point(pose.x, pose.y, pose.h)
 	}
 
-	fun setPosition(point: Point) {
+	override fun setPosition(point: Point) {
 		otos.position = SparkFunOTOS.Pose2D(point.x, point.y, point.rot)
 	}
 

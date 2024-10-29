@@ -31,7 +31,6 @@ class ProportionalController(
 		var error = inputError
 		val absError = abs(error)
 		val dV = cycleTime.seconds() * accelLimit // limit acceleration
-//		var output: Double
 
 		// normalize to +/- PI if we are controlling heading
 		if (circular) {

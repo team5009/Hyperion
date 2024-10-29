@@ -1,9 +1,7 @@
 package ca.helios5009.hyperion.core
 
 import android.annotation.SuppressLint
-import ca.helios5009.hyperion.hardware.Odometry
-import ca.helios5009.hyperion.hardware.Otos
-import ca.helios5009.hyperion.misc.constants.PositionTracking
+import ca.helios5009.hyperion.misc.Odometry
 import ca.helios5009.hyperion.misc.cosineLaw
 import ca.helios5009.hyperion.misc.euclideanDistance
 import ca.helios5009.hyperion.misc.events.EventListener
@@ -41,23 +39,25 @@ import kotlin.math.sqrt
  * @see EventListener
  * @see PathBuilder
  */
-class Movement(
-	val opMode: LinearOpMode,
-	val listener: EventListener,
+class Movement<T: Odometry>(
+	private val opMode: LinearOpMode,
+	private val listener: EventListener,
 	private val bot: Motors,
-	private val tracking: PositionTracking,
-	val debug: Boolean = false
+	private val debug: Boolean
 ) {
 	var minimumVectorTolerance: Double = 2.0
 	var timeout = 150.0
 
-	private lateinit var driveController : ProportionalController
-	private lateinit var strafeController : ProportionalController
-	private lateinit var rotateController : ProportionalController
+	var tracking: T? = null
 
+	var distanceFromTarget = AtomicReference(0.0)
+	var velocity: Double = 0.0
+	var acceleration: Double = 0.0
 
-	private var deadwheels: Odometry? = null
-	private var otos: Otos? = null
+	lateinit var driveController : ProportionalController
+	lateinit var strafeController : ProportionalController
+	lateinit var rotateController : ProportionalController
+
 
 	private var finalPathPoint: Point = Point(0.0, 0.0, 0.0)
 	private var currentTargetPoint: Point = Point(0.0, 0.0, 0.0)
@@ -67,12 +67,9 @@ class Movement(
 	private var currentPosition = Point(0.0, 0.0, 0.0)
 	private var previousPosition = Point(0.0, 0.0, 0.0)
 
-	private var distanceFromTarget = AtomicReference(0.0)
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
-	var velocity: Double = 0.0
-	var acceleration: Double = 0.0
 
 	/**
 	 * Run the path that is given to the robot.
@@ -327,39 +324,21 @@ class Movement(
 		return distance
 	}
 
-	fun setTracking(otos: Otos?, deadwheels: Odometry?) {
-		if (deadwheels == null && otos == null) {
-			throw NullPointerException("You need to set a tracking method")
-		}
-		if (tracking == PositionTracking.OTOS && otos != null) {
-			this.otos = otos
-		} else if (tracking == PositionTracking.DEADWHEELS && deadwheels != null) {
-			this.deadwheels = deadwheels
+	fun getPosition(): Point {
+		if (tracking != null) {
+			return tracking!!.getPosition()
 		} else {
 			throw IllegalArgumentException("Tracking is not set")
-		}
-	}
-
-	fun getPosition(): Point {
-		return if (tracking == PositionTracking.OTOS && otos != null) {
-			otos!!.getPosition()
-		} else if (tracking == PositionTracking.DEADWHEELS && deadwheels != null) {
-			deadwheels!!.calculate()
-		} else {
-			throw IllegalArgumentException("Tracking is not set properly")
 		}
 	}
 
 	fun setPosition(point: Point) {
-		if (tracking == PositionTracking.OTOS && otos != null) {
-			otos!!.setPosition(point)
-		} else if (tracking == PositionTracking.DEADWHEELS && deadwheels != null) {
-			deadwheels!!.setOrigin(point)
+		if (tracking != null) {
+			tracking!!.setPosition(point)
 		} else {
 			throw IllegalArgumentException("Tracking is not set")
 		}
 	}
-
 
 	private fun calculateVelocity() {
 		val deltaTime = kinematicsTimer.seconds()
@@ -373,48 +352,7 @@ class Movement(
 		acceleration = deltaVelocity / deltaTime
 	}
 
-	/*
-	 * Get the distance from the current target point
-	 */
-	fun getDistanceFromTarget(): Double {
-		return distanceFromTarget.get()
-	}
 
-	/**
-	 * Set constants for the Drive PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
-	 */
-	fun setDriveConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		driveController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
-	}
-
-	/**
-	 * Set constants for the Strafe PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
-	 */
-	fun setStrafeConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		strafeController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
-	}
-
-	/**
-	 * Set constants for the Rotation PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
-	 */
-	fun setRotateConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		rotateController = ProportionalController(gain, accelerationLimit, tolerance, deadband, true)
-	}
 
 	private fun resetController() {
 		driveController.reset()
