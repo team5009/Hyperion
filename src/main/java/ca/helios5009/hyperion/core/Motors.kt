@@ -20,17 +20,15 @@ class Motors(
 	backRight: String
 ) {
 	private val powerRatio = AtomicReference(1.0) // The max power of the motors
-	private val fl: HyperionMotor = HyperionMotor(hardwareMap, frontLeft)
+	private val fl: HyperionMotor = HyperionMotor(hardwareMap, frontLeft).reverse()
 	private val fr: HyperionMotor = HyperionMotor(hardwareMap, frontRight)
-	private val bl: HyperionMotor = HyperionMotor(hardwareMap, backLeft)
+	private val bl: HyperionMotor = HyperionMotor(hardwareMap, backLeft).reverse()
 	private val br: HyperionMotor = HyperionMotor(hardwareMap, backRight)
 	init {
 		val motorList = arrayOf(fl, fr, bl, br)
-		motorList[0].motor.direction = DcMotorSimple.Direction.REVERSE
-		motorList[2].motor.direction = DcMotorSimple.Direction.REVERSE
 		motorList.forEach {
-			it.motor.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
-			it.motor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+			it.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER)
+			it.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE)
 		}
 	}
 

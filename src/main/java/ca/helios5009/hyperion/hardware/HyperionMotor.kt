@@ -87,6 +87,14 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	}
 
 	/**
+	 * Sets the mode of the motor.
+	 * @param mode the mode to set.
+	 */
+	fun setMode(mode: DcMotor.RunMode) {
+		motor.mode = mode
+	}
+
+	/**
 	 * Sets the power differential that will be considered the same power.
 	 * @param tolerance the power tolerance to set.
 	 */
