@@ -2,6 +2,7 @@ package ca.helios5009.hyperion.hardware
 
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
+import com.qualcomm.robotcore.hardware.DcMotorSimple
 import com.qualcomm.robotcore.hardware.HardwareMap
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit
 import kotlin.math.abs
@@ -23,6 +24,10 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	private var power = 0.0
 	private var powerTolerance = 0.01
 	val motor = hardwareMap[motorName] as DcMotorEx
+
+	init {
+		motor.direction = DcMotorSimple.Direction.FORWARD
+	}
 
 	fun setPower(power: Double) {
 		if (abs(power - this.power) > powerTolerance || power == 0.0) {
@@ -100,6 +105,15 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	fun resetEncoder() {
 		motor.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
 		motor.mode = DcMotor.RunMode.RUN_USING_ENCODER
+	}
+
+	/**
+	 * Reverse the motor.
+	 *
+	 */
+	fun reverse(): HyperionMotor {
+		motor.direction = DcMotorSimple.Direction.REVERSE
+		return this
 	}
 
 	/**
