@@ -1,14 +1,15 @@
 package ca.helios5009.hyperion.hidden
 
 import ca.helios5009.hyperion.core.Movement
+import ca.helios5009.hyperion.misc.Odometry
 import ca.helios5009.hyperion.misc.events.EventListener
 import com.google.gson.Gson
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 
-class CommandExecute(
+class CommandExecute<T: Odometry>(
 	val opMode: LinearOpMode,
 	val eventListener: EventListener,
-	val movement: Movement,
+	val movement: Movement<T>,
 	val testOnly: Boolean = false
 ) {
 	var unParsedCommands = ""
