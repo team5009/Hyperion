@@ -48,7 +48,7 @@ class Movement<T: Odometry>(
 	var minimumVectorTolerance: Double = 2.0
 	var timeout = 150.0
 
-	var tracking: T? = null
+	lateinit var tracking: T
 
 	var distanceFromTarget = AtomicReference(0.0)
 	var velocity: Double = 0.0
@@ -198,8 +198,16 @@ class Movement<T: Odometry>(
 		// Calculate the speed factor (The speed that the robot should go to remove the stutter between points)
 		val speedFactor = lookForNextError(currentPosition, endPoint)
 
-		val deltaX = (point.x - currentPosition.x) / error * speedFactor
-		val deltaY = (point.y - currentPosition.y) / error * speedFactor
+		val deltaX = if (path.isEmpty()) {
+			(point.x - currentPosition.x)
+		} else {
+			(point.x - currentPosition.x) / error * speedFactor
+		}
+		val deltaY = if (path.isEmpty()) {
+			(point.y - currentPosition.y)
+		} else {
+			(point.y - currentPosition.y) / error * speedFactor
+		}
 		val deltaRot = point.rot - currentPosition.rot
 
 		val theta = currentPosition.rot
@@ -325,19 +333,11 @@ class Movement<T: Odometry>(
 	}
 
 	fun getPosition(): Point {
-		if (tracking != null) {
-			return tracking!!.getPosition()
-		} else {
-			throw IllegalArgumentException("Tracking is not set")
-		}
+		return tracking.getPosition()
 	}
 
 	fun setPosition(point: Point) {
-		if (tracking != null) {
-			tracking!!.setPosition(point)
-		} else {
-			throw IllegalArgumentException("Tracking is not set")
-		}
+		tracking.setPosition(point)
 	}
 
 	private fun calculateVelocity() {
