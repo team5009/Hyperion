@@ -2,6 +2,7 @@ package ca.helios5009.hyperion.core
 
 import com.qualcomm.robotcore.util.ElapsedTime
 import kotlin.math.abs
+import kotlin.math.sign
 
 class ProportionalController(
 	private val gain: Double,
@@ -45,14 +46,17 @@ class ProportionalController(
 			// calculate output power using gain and clip it to the limits
 			var output = error * gain
 
-			// Now limit rate of change of output (acceleration)
-			if (absError > abs(lastOutput)) { // If the output is increasing
+				// Now limit rate of change of output (acceleration)
+			if (absError > abs(lastOutput) && sign(error).equals(sign(lastOutput))) { // If the output is increasing and going in the same direction
 				if (output - lastOutput > dV) {
 					output = lastOutput + dV // limit the rate of increase
 				} else if (output - lastOutput < -dV) {
 					output = lastOutput - dV // limit the rate of decrease
 				}
+			} else if (!sign(error).equals(sign(lastOutput))){
+				output = dV * sign(error) // If the output is changing direction, limit the rate of change
 			}
+
 			output
 		}
 		lastOutput = output

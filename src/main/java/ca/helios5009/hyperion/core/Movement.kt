@@ -11,11 +11,8 @@ import ca.helios5009.hyperion.pathing.PointType
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.abs
 import kotlin.math.cos
-import kotlin.math.sign
 import kotlin.math.sin
-import kotlin.math.sqrt
 
 /**
  * Class that handles the movement of the robot
@@ -140,6 +137,7 @@ class Movement<T: Odometry>(
 			}
 
 			listener.call(currentTargetPoint.event) // Call events
+			resetController() // Reset the controllers
 			do {
 				val distance =
 					goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
@@ -175,7 +173,7 @@ class Movement<T: Odometry>(
 	/**
 	 * Set power to the motors to move the robot to a point.
 	 * Calculates the power needed to give to each motors (ONLY FOR [MECANUM](<en.wikipedia.org/wiki/Mecanum_wheel>) WHEELS)
-	 * @param point The point to move the robot to
+	 * @param targetPosition The point to move the robot to
 	 * @param endPoint If it is the end point
 	 * @return The distance from the target point in inches
 	 *
@@ -183,7 +181,7 @@ class Movement<T: Odometry>(
 	 * @see ProportionalController.update
 	 */
 	@SuppressLint("DefaultLocale")
-	fun goto(point: Point, endPoint: Boolean = false): Double {
+	fun goto(targetPosition: Point, endPoint: Boolean = false): Double {
 		currentPosition = getPosition() // Get the current position of the robot // Set the path index to the current point in the path
 		calculateVelocity() // Calculate the velocity of the robot
 		calculateAcceleration() // Calculate the acceleration of the robot
@@ -191,26 +189,24 @@ class Movement<T: Odometry>(
 		previousPosition = currentPosition.clone() // Set the previous position to the current position
 		previousVelocity = velocity // Set the previous velocity to the current velocity
 
+		val theta = currentPosition.rot // Get the current angle of the robot
 
 		// Calculate the error between the target and the current position
-		val error = euclideanDistance(point, currentPosition)
+		val error = euclideanDistance(targetPosition, currentPosition)
 
 		// Calculate the speed factor (The speed that the robot should go to remove the stutter between points)
-		val speedFactor = lookForNextError(currentPosition, endPoint)
-
-		val deltaX = if (path.isEmpty()) {
-			(point.x - currentPosition.x)
+		val speedFactor = if (endPoint) {
+			error
 		} else {
-			(point.x - currentPosition.x) / error * speedFactor
+			lookForNextError(currentPosition)
 		}
-		val deltaY = if (path.isEmpty()) {
-			(point.y - currentPosition.y)
-		} else {
-			(point.y - currentPosition.y) / error * speedFactor
-		}
-		val deltaRot = point.rot - currentPosition.rot
 
-		val theta = currentPosition.rot
+		val deltaX = (targetPosition.x - currentPosition.x) * speedFactor
+
+		val deltaY = (targetPosition.y - currentPosition.y) * speedFactor
+
+		val deltaRot = targetPosition.rot - theta
+
 		// Calculate the amount of drive error that the robot should move
 		val driveError = deltaX * cos(theta) - deltaY * sin(theta)
 		// Calculate the amount of strafe error that the robot should move
@@ -306,12 +302,11 @@ class Movement<T: Odometry>(
 	 * When looking for the next error, it use's the point after the error point to control it's distance.
 	 * Best practice to set point that will act as a reference point after the error if you want to control the speed sooner or later.
 	 * @param position The current position of the robot
-	 * @param endPoint If it is the end point
 	 * @return The distance to the next error
 	 *
 	 * @see Point
 	 */
-	private fun lookForNextError(position: Point, endPoint: Boolean): Double {
+	private fun lookForNextError(position: Point): Double {
 		var distance = 0.0
 		var point = position // initialize with position
 
@@ -320,7 +315,7 @@ class Movement<T: Odometry>(
 			val error = euclideanDistance(nextPoint, point) // Calculate the error between the next point and the current point
 			distance += error // Add the error to the distance
 			point = nextPoint // Set the current point to the next point
-			if (point.useError && !endPoint) { // Check if the point uses error and if it is not the end point
+			if (point.useError) { // Check if the point uses error and if it is not the end point
 				val nextNextPoint = path[i + 1] // Get the next point after the error point
 				val nextError = euclideanDistance(nextNextPoint, point) // Calculate the error between the next point and the current point
 				distance += nextError // Add the error to the distance
@@ -350,8 +345,6 @@ class Movement<T: Odometry>(
 		val deltaVelocity = velocity - previousVelocity
 		acceleration = deltaVelocity / deltaTime
 	}
-
-
 
 	private fun resetController() {
 		driveController.reset()
