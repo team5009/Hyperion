@@ -184,12 +184,12 @@ class Movement<T: Odometry>(
 	 */
 	@SuppressLint("DefaultLocale")
 	fun goto(point: Point, endPoint: Boolean = false): Double {
-		previousPosition = currentPosition.clone() // Set the previous position to the current position
-		previousVelocity = velocity // Set the previous velocity to the current velocity
 		currentPosition = getPosition() // Get the current position of the robot // Set the path index to the current point in the path
 		calculateVelocity() // Calculate the velocity of the robot
 		calculateAcceleration() // Calculate the acceleration of the robot
 		kinematicsTimer.reset() // Reset the timer to calculate the velocity
+		previousPosition = currentPosition.clone() // Set the previous position to the current position
+		previousVelocity = velocity // Set the previous velocity to the current velocity
 
 
 		// Calculate the error between the target and the current position
@@ -219,8 +219,7 @@ class Movement<T: Odometry>(
 		val drive = driveController.update(driveError)
 		val strafe = -strafeController.update(strafeError)
 		val rotate = -rotateController.update(deltaRot)
-		val rotationCorrection = sign(rotate) * sqrt(abs(rotate))
-		bot.move(drive, strafe, rotationCorrection)
+		bot.move(drive, strafe, rotate)
 		if (debug) {
 			opMode.telemetry.addData("Drive", drive)
 			opMode.telemetry.addData("Strafe", strafe)
