@@ -47,14 +47,14 @@ class ProportionalController(
 			var output = error * gain
 
 				// Now limit rate of change of output (acceleration)
-			if (absError > abs(lastOutput) && sign(error).equals(sign(lastOutput))) { // If the output is increasing and going in the same direction
+			if (!sign(error).equals(sign(lastOutput))){
+				output = dV * sign(error) // If the output is changing direction, limit the rate of change
+			} else if (absError > abs(lastOutput)) {
 				if (output - lastOutput > dV) {
 					output = lastOutput + dV // limit the rate of increase
 				} else if (output - lastOutput < -dV) {
 					output = lastOutput - dV // limit the rate of decrease
 				}
-			} else if (!sign(error).equals(sign(lastOutput))){
-				output = dV * sign(error) // If the output is changing direction, limit the rate of change
 			}
 
 			output
