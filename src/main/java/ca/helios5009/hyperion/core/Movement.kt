@@ -16,8 +16,8 @@ import kotlin.math.sin
 
 /**
  * Class that handles the movement of the robot
- *  - Set the constants for the [Movement.setDriveConstants], [Movement.setStrafeConstants], [Movement.setRotateConstants] PID controllers
- *  - Set the [tracking] method for the robot and run [setTracking] to add the odometry calculation
+ *  - Set the constants for the [Movement.driveController], [Movement.strafeController], [Movement.rotateController] PID controllers
+ *  - Set the [tracking] method for the robot and run to add the odometry calculation
  *  - [mimimun path tolerence][Movement.minimumVectorTolerance] for the robot to reach the point in a continuous path, how much leeway the robot has to reach the point
  *  - [timeout] when the robot is stuck, how long the robot should wait before moving on
  *
@@ -54,7 +54,6 @@ class Movement<T: Odometry>(
 	lateinit var driveController : ProportionalController
 	lateinit var strafeController : ProportionalController
 	lateinit var rotateController : ProportionalController
-
 
 	private var finalPathPoint: Point = Point(0.0, 0.0, 0.0)
 	private var currentTargetPoint: Point = Point(0.0, 0.0, 0.0)
@@ -160,7 +159,7 @@ class Movement<T: Odometry>(
 				}
 			} while (
 				opMode.opModeIsActive() &&
-				distance > vectorTolerance
+				distance > vectorTolerance && rotateController.inPosition
 			) // Loop until the robot is within the vector tolerance
 			currentPathIndex++ // Increment the path index
 		}
@@ -239,6 +238,7 @@ class Movement<T: Odometry>(
 	 * @see ProportionalController
 	 */
 	private fun goToEndPoint() {
+		resetController() // Reset the controllers
 		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
 		val loopTime = if (debug) {
 			ElapsedTime()
@@ -346,7 +346,7 @@ class Movement<T: Odometry>(
 		acceleration = deltaVelocity / deltaTime
 	}
 
-	private fun resetController() {
+	fun resetController() {
 		driveController.reset()
 		strafeController.reset()
 		rotateController.reset()
