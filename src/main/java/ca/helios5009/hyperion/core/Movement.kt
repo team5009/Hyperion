@@ -51,9 +51,9 @@ class Movement<T: Odometry>(
 	var velocity: Double = 0.0
 	var acceleration: Double = 0.0
 
-	lateinit var driveController : ProportionalController
-	lateinit var strafeController : ProportionalController
-	lateinit var rotateController : ProportionalController
+	lateinit var driveController : PIDFController
+	lateinit var strafeController : PIDFController
+	lateinit var rotateController : PIDFController
 
 	private var finalPathPoint: Point = Point(0.0, 0.0, 0.0)
 	private var currentTargetPoint: Point = Point(0.0, 0.0, 0.0)
@@ -137,6 +137,10 @@ class Movement<T: Odometry>(
 
 			listener.call(currentTargetPoint.event) // Call events
 			resetController() // Reset the controllers
+			driveController.setTarget(0.0) // Set the target for the drive controller to 0
+			strafeController.setTarget(0.0) // Set the target for the strafe controller to 0
+			rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
+
 			do {
 				val distance =
 					goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
@@ -159,7 +163,7 @@ class Movement<T: Odometry>(
 				}
 			} while (
 				opMode.opModeIsActive() &&
-				distance > vectorTolerance && rotateController.inPosition
+				distance > vectorTolerance && rotateController.isAtTarget()
 			) // Loop until the robot is within the vector tolerance
 			currentPathIndex++ // Increment the path index
 		}
@@ -207,13 +211,13 @@ class Movement<T: Odometry>(
 		val deltaRot = targetPosition.rot - theta
 
 		// Calculate the amount of drive error that the robot should move
-		val driveError = deltaX * cos(theta) - deltaY * sin(theta)
+		val driveError = deltaX * cos(-theta) - deltaY * sin(-theta)
 		// Calculate the amount of strafe error that the robot should move
-		val strafeError = deltaX * sin(theta) + deltaY * cos(theta)
+		val strafeError = deltaX * sin(-theta) + deltaY * cos(-theta)
 
-		val drive = driveController.update(driveError)
-		val strafe = -strafeController.update(strafeError)
-		val rotate = -rotateController.update(deltaRot)
+		val drive = driveController.calculate(driveError)
+		val strafe = -strafeController.calculate(strafeError)
+		val rotate = -rotateController.calculate(deltaRot)
 		bot.move(drive, strafe, rotate)
 		if (debug) {
 			opMode.telemetry.addData("Drive", drive)
@@ -251,11 +255,16 @@ class Movement<T: Odometry>(
 		var inDrivePosition = false
 		var inStrafePosition = false
 		var inRotatePosition = false
+
+		driveController.setTarget(0.0) // Set the target for the drive controller to 0
+		strafeController.setTarget(0.0) // Set the target for the strafe controller to 0
+		rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
+
 		while (opMode.opModeIsActive()) {
 			val distance = goto(finalPathPoint, true)
 			distanceFromTarget.set(distance)
 			if (debug) {
-				if ( driveController.inPosition && strafeController.inPosition && rotateController.inPosition ) {
+				if ( driveController.isAtTarget() && strafeController.isAtTarget() && rotateController.isAtTarget() ) {
 					break
 				}
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
@@ -275,7 +284,7 @@ class Movement<T: Odometry>(
 				if (inDrivePosition && inStrafePosition && inRotatePosition) {
 					if (
 						timeoutTimer.milliseconds() > timeout
-						|| (driveController.inPosition && strafeController.inPosition && rotateController.inPosition)
+						|| (driveController.isAtTarget() && strafeController.isAtTarget() && rotateController.isAtTarget())
 					) {
 						break
 					}
@@ -283,13 +292,13 @@ class Movement<T: Odometry>(
 					timeoutTimer.reset()
 				}
 
-				if (driveController.inPosition && !inDrivePosition) {
+				if (driveController.isAtTarget() && !inDrivePosition) {
 					inDrivePosition = true
 				}
-				if (strafeController.inPosition && !inStrafePosition) {
+				if (strafeController.isAtTarget() && !inStrafePosition) {
 					inStrafePosition = true
 				}
-				if (rotateController.inPosition && !inRotatePosition) {
+				if (rotateController.isAtTarget() && !inRotatePosition) {
 					inRotatePosition = true
 				}
 			}

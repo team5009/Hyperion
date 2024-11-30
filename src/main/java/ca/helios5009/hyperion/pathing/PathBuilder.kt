@@ -2,6 +2,7 @@ package ca.helios5009.hyperion.pathing
 
 import ca.helios5009.hyperion.core.Motors
 import ca.helios5009.hyperion.core.Movement
+import ca.helios5009.hyperion.core.PIDFController
 import ca.helios5009.hyperion.core.ProportionalController
 import ca.helios5009.hyperion.hardware.Deadwheels
 import ca.helios5009.hyperion.misc.Odometry
@@ -27,6 +28,7 @@ import com.qualcomm.robotcore.util.ElapsedTime
  * @see Movement
  * @see Otos
  * @see Deadwheels
+ * @see PIDFController
  * @author Gilbert O.
 */
 class PathBuilder<T: Odometry>(
@@ -146,10 +148,10 @@ class PathBuilder<T: Odometry>(
 	}
 
 	/**
-	 * End the path. This will stop the robot from moving. It will also call the event that is passed in.
+	 * Alternate to end. End the path. This will stop the robot from moving. It will also call the event that is passed in.
 	 * @param event The event to call when the path is done.
 	 */
-	fun end(event: String = "_") {
+	fun endWithoutHold(event: String = "_") {
 		when(state) {
 			PathState.ENDED -> {
 				throw IllegalStateException("Path has not started")
@@ -166,11 +168,11 @@ class PathBuilder<T: Odometry>(
 	}
 
 	/**
-	 * Alternate to end. This will hold the bot's position till the end of autonomous.
+	 * This will hold the bot's position till the end of autonomous.
 	 * Useful if there's a chance you get hit out of parking or something.
 	 * @param event The event to call when the path is done.
 	 */
-	fun endHold(event: String = "_") {
+	fun end(event: String = "_") {
 		when (state) {
 			PathState.ENDED -> {
 				throw IllegalStateException("Path has not started / Path has already ended")
@@ -360,38 +362,30 @@ class PathBuilder<T: Odometry>(
 
 	/**
 	 * Set constants for the Drive PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
+	 * @see PIDFController
 	 */
-	fun setDriveConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		movement.driveController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
+	fun setDriveConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double) {
+		movement.driveController = PIDFController(kP, kI, kD, kF)
+		movement.driveController.setTolerance(posTolerance, velTolerance)
 	}
 
 	/**
 	 * Set constants for the Strafe PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
+	 * @see PIDFController
 	 */
-	fun setStrafeConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		movement.strafeController = ProportionalController(gain, accelerationLimit, tolerance, deadband)
+	fun setStrafeConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double) {
+		movement.strafeController = PIDFController(kP, kI, kD, kF)
+		movement.strafeController.setTolerance(posTolerance, velTolerance)
 	}
 
 	/**
 	 * Set constants for the Rotation PID controller
-	 * @param gain The gain of the PID controller
-	 * @param accelerationLimit The acceleration limit of the PID controller
-	 * @param tolerance The tolerance of the PID controller
-	 * @param deadband The deadband of the PID controller
-	 * @see ProportionalController
+	 *
+	 * @see PIDFController
 	 */
-	fun setRotateConstants(gain: Double, accelerationLimit: Double, tolerance: Double, deadband: Double) {
-		movement.rotateController = ProportionalController(gain, accelerationLimit, tolerance, deadband, true)
+	fun setRotateConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double) {
+		movement.rotateController = PIDFController(kP, kI, kD, kF)
+		movement.rotateController.setTolerance(posTolerance, velTolerance)
 	}
 
 }
