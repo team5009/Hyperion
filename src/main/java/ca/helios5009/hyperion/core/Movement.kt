@@ -208,8 +208,6 @@ class Movement<T: Odometry>(
 
 		val deltaY = (targetPosition.y - currentPosition.y) * speedFactor
 
-		val deltaRot = targetPosition.rot - theta
-
 		// Calculate the amount of drive error that the robot should move
 		val driveError = deltaX * cos(-theta) - deltaY * sin(-theta)
 		// Calculate the amount of strafe error that the robot should move
@@ -217,7 +215,7 @@ class Movement<T: Odometry>(
 
 		val drive = driveController.calculate(driveError)
 		val strafe = -strafeController.calculate(strafeError)
-		val rotate = -rotateController.calculate(deltaRot)
+		val rotate = -rotateController.calculate(theta)
 		bot.move(drive, strafe, rotate)
 		if (debug) {
 			opMode.telemetry.addData("Drive", drive)

@@ -44,6 +44,8 @@ class PIDFController(
 	private var lastTime: Double = 0.0;
 	private var period: Double = 0.0;
 
+	private var circular = false;
+
 	fun reset() {
 		totalError = 0.0;
 		prevPositionError = 0.0;
@@ -82,6 +84,20 @@ class PIDFController(
 
 
 	/**
+	 * Enables the controller to wrap around the angle.
+	 */
+	fun setAngleWrapAround() {
+		circular = true;
+	}
+
+	fun angleWrap(err: Double): Double {
+		var error = err;
+		while (error > Math.PI) error -= 2 * Math.PI
+		while (error <= -Math.PI) error += 2 * Math.PI
+		return error;
+	}
+
+	/**
 	 * @return The output of the controller.
 	 */
 	fun getCoefficients(): List<Double> {
@@ -104,12 +120,11 @@ class PIDFController(
 		period = currentTime - lastTime;
 		lastTime = currentTime;
 
-		positionError = if (measuredValue.equals(pv)) {
-			targetPoint - measuredValue;
-		} else {
+		if (!measuredValue.equals(pv)) {
 			measuredValue = pv;
-			targetPoint - pv;
 		}
+
+		positionError = angleWrap(targetPoint - measuredValue);
 
 		velocityError = if (abs(period) > 1e-6) {
 			(positionError - prevPositionError) / period;
