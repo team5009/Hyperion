@@ -387,8 +387,8 @@ class PathBuilder<T: Odometry>(
 	 * Set constants for the Drive PID controller
 	 * @see PIDFController
 	 */
-	fun setDriveConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
-		movement.driveController = PIDFController(kP, kI, kD, kF)
+	fun setDriveConstants(kP: Double, kI: Double, kD: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
+		movement.driveController = PIDFController(kP, kI, kD,0.0)
 		movement.driveController.setTolerance(posTolerance, velTolerance)
 		return this
 	}
@@ -397,8 +397,8 @@ class PathBuilder<T: Odometry>(
 	 * Set constants for the Strafe PID controller
 	 * @see PIDFController
 	 */
-	fun setStrafeConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
-		movement.strafeController = PIDFController(kP, kI, kD, kF)
+	fun setStrafeConstants(kP: Double, kI: Double, kD: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
+		movement.strafeController = PIDFController(kP, kI, kD, 0.0)
 		movement.strafeController.setTolerance(posTolerance, velTolerance)
 		return this
 	}

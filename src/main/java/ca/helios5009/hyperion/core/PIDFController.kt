@@ -111,39 +111,10 @@ class PIDFController(
 	 * @return the value produced by u(t).
 	 */
 	fun calculate(pv: Double) : Double {
-		prevPositionError = positionError;
-		val currentTime = System.nanoTime() / 1e9;
-
-		if (lastTime.equals(0.0)) lastTime = currentTime;
-
-		period = currentTime - lastTime;
-		lastTime = currentTime;
-
 		if (!measuredValue.equals(pv)) {
 			measuredValue = pv;
 		}
-
-		val err = targetPoint - measuredValue;
-		positionError = if (circular) {angleWrap(err)} else {err};
-
-		velocityError = if (abs(period) > 1e-6) {
-			(positionError - prevPositionError) / period;
-		} else {
-			0.0;
-		}
-
-		/*
-	        if total error is the integral from 0 to t of e(t')dt', and
-	        e(t) = sp - pv, then the total error, E(t), equals sp*t - pv*t.
-         */
-		totalError += period * (targetPoint - measuredValue);
-		totalError = if (totalError < minIntegral) {
-			minIntegral
-		} else {
-			min(maxIntegral, totalError)
-		}
-
-		return kP * positionError + kI * totalError + kD * velocityError + kF * targetPoint;
+		return directCalculate(targetPoint - measuredValue);
 	}
 
 	fun directCalculate(error: Double): Double {
