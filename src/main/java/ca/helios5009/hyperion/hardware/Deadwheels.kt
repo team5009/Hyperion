@@ -14,7 +14,7 @@ import kotlin.math.sin
 class Deadwheels (private val lateralEncoder: DcMotorEx, private val axialEncoder: DcMotorEx, private val imu: IMU):
 	Odometry {
 
-	private var location = Point(0.0, 0.0, 0.0)
+	private var location = Point(0.0, 0.0).setRad(0.0)
 
 	private val encoderConstant: Double = PI * 2.0 / 2000.0
 	private var lateralOffset = 0.0
@@ -26,6 +26,12 @@ class Deadwheels (private val lateralEncoder: DcMotorEx, private val axialEncode
 	private var lastLateral = 0.0
 	private var lastAxial = 0.0
 
+	override var position: Point
+		get() = getPosition()
+		set(value) {
+			location = value
+		}
+
 	/**
 	 * Set the offsets for the lateral and axial encoders.
 	 * @param lateralOffset The offset for the lateral encoder. Measure (inches) distance from center to the forward encoder.
@@ -36,7 +42,7 @@ class Deadwheels (private val lateralEncoder: DcMotorEx, private val axialEncode
 		this.axialOffset = axialOffset
 	}
 
-	override fun getPosition(): Point {
+	fun getPosition(): Point {
 		val rot = imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS)
 
 		lastLateral = currentLateral
@@ -52,14 +58,11 @@ class Deadwheels (private val lateralEncoder: DcMotorEx, private val axialEncode
 		val deltaX = (deltaLateral * encoderConstant) - lateralOffset
 		val deltaY = (deltaAxial * encoderConstant) - axialOffset
 
-		location.rot = rot
+		location.setRad(rot)
 		location.x += deltaX * cos(rot) - deltaY * sin(rot)
 		location.y += deltaX * sin(rot) + deltaY * cos(rot)
 		return location
 	}
 
-	override fun setPosition(point: Point) {
-		location = point
-	}
 
 }

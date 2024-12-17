@@ -7,10 +7,10 @@ import ca.helios5009.hyperion.misc.euclideanDistance
 import ca.helios5009.hyperion.misc.events.EventListener
 import ca.helios5009.hyperion.pathing.PathBuilder
 import ca.helios5009.hyperion.pathing.Point
-import ca.helios5009.hyperion.pathing.PointType
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -26,15 +26,15 @@ import kotlin.math.sin
  *  - [goto] the point that is given to the robot
  *
  *  Debug Mode will show telemetry data on the robot's position, the current target point, the vector tolerance, the distance, and the loop time
- * @param opMode The LinearOpMode that the robot is running on
- * @param listener The ca.helios5009.hyperion.misc.events.EventListener that is used to call events
- * @param bot The Motors object that is used to move the robot
- * @param tracking The tracking method that is used to track the robot's position
- * @param debug If the debug telemetry should be shown
+ * @param opMode [LinearOpMode] that the robot is running on
+ * @param listener [EventListener] that is used to call events
+ * @param bot [Motors] object that is used to move the robot
+ * @param debug If the debug [org.firstinspires.ftc.robotcore.external.Telemetry] should be shown
  * @constructor Create a new Movement object
  * @see Motors
  * @see EventListener
  * @see PathBuilder
+ * @see PIDFController
  */
 class Movement<T: Odometry>(
 	private val opMode: LinearOpMode,
@@ -55,14 +55,14 @@ class Movement<T: Odometry>(
 	lateinit var strafeController : PIDFController
 	lateinit var rotateController : PIDFController
 
-	private var finalPathPoint: Point = Point(0.0, 0.0, 0.0)
-	private var currentTargetPoint: Point = Point(0.0, 0.0, 0.0)
+	private var finalPathPoint: Point = Point(0.0, 0.0)
+	private var currentTargetPoint: Point = Point(0.0, 0.0)
 	private var path: List<Point> = listOf()
 	private var currentPathIndex = 0;
 
-	private var currentPosition = Point(0.0, 0.0, 0.0)
-	private var previousPosition = Point(0.0, 0.0, 0.0)
-
+	var currentPosition = Point(0.0, 0.0)
+		private set
+	private var previousPosition = Point(0.0, 0.0)
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
@@ -77,21 +77,7 @@ class Movement<T: Odometry>(
 	 */
 	fun run(points: List<Point>) {
 		path = points // Set the path to the list of points
-		val finalPoint = points.last() // Get the final point in the path
-		finalPathPoint = if (finalPoint.type == PointType.Global) {
-			finalPoint
-		} else {
-			val relativePosition: Point = if (points.size - 2 < 0) {
-				getPosition()
-			} else {
-				points[points.size - 2]
-			}
-			Point(
-				finalPoint.x + relativePosition.x,
-				finalPoint.y + relativePosition.y,
-				finalPoint.rot + relativePosition.rot
-			)
-		}
+		finalPathPoint = points.last() // Get the final point in the path
 
 		val loopTime = if (debug) {
 			ElapsedTime()
@@ -104,47 +90,18 @@ class Movement<T: Odometry>(
 		// Set the final path point to the last point in the list
 		currentPathIndex = 0 // Set the current path index to 0
 		while (currentPathIndex < path.size - 1) { // Loop through the path but leave the last point
-			currentTargetPoint =
-				points[currentPathIndex] // Set the current target point to the current point in the path
+			currentTargetPoint = points[currentPathIndex] // Set the current target point to the current point in the path
 			previousPosition = currentPosition.clone() // Set the previous position to the current position
-			currentPosition = getPosition() // Get the current position of the robot
-			var angleOfPath = 0.0 // Initialize the angle of the path
-			val vectorTolerance = if (currentTargetPoint.useManualTorence) {
-				currentTargetPoint.getTolerance() // Use the manual tolerance if it is set
-			} else {
-				val pointAhead =
-					path[currentPathIndex + 1] // Get the point that is ahead of the current point
-				val distanceA = euclideanDistance(
-					currentPosition,
-					currentTargetPoint
-				) // Calculate the distance between the current position and the target point
-				val distanceB = euclideanDistance(
-					currentTargetPoint,
-					pointAhead
-				) // Calculate the distance between the target point and the next point
-				val distanceC = euclideanDistance(
-					currentPosition,
-					pointAhead
-				) // Calculate the distance between the current position and the next point
+			currentPosition = tracking.position // Get the current position of the robot
 
-				angleOfPath =
-					cosineLaw(distanceA, distanceB, distanceC) // Calculate the angle of the path
-				maxOf(
-					minimumVectorTolerance,
-					(Math.PI - angleOfPath) * minimumVectorTolerance
-				) // Calculate the vector tolerance
-			}
-
+			setHeading() // Set the heading
+			val vectorTolerance = calculateTolerance() // Calculate the vector tolerance
 			listener.call(currentTargetPoint.event) // Call events
 			resetController() // Reset the controllers
-			driveController.setTarget(0.0) // Set the target for the drive controller to 0
-			strafeController.setTarget(0.0) // Set the target for the strafe controller to 0
 			rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
-
 			do {
-				val distance =
-					goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
-				distanceFromTarget.set(distance) // Set the distance from the target point
+				goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
+				val rotationError = rotateController.positionError // Get the rotation error
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					totalLoopTime += loopTimeValue
@@ -153,7 +110,6 @@ class Movement<T: Odometry>(
 					opMode.telemetry.addData("Position", currentPosition.toString())
 					opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
-					opMode.telemetry.addData("Angle of Path", angleOfPath)
 
 					opMode.telemetry.addLine("--------------------")
 					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
@@ -163,7 +119,10 @@ class Movement<T: Odometry>(
 				}
 			} while (
 				opMode.opModeIsActive() &&
-				distance > vectorTolerance && rotateController.isAtTarget()
+				(
+					distanceFromTarget.get() > vectorTolerance ||
+					abs(rotationError) > rotateController.tolerances.first * 2.0
+				)
 			) // Loop until the robot is within the vector tolerance
 			currentPathIndex++ // Increment the path index
 		}
@@ -181,42 +140,43 @@ class Movement<T: Odometry>(
 	 * @return The distance from the target point in inches
 	 *
 	 * @see Point
-	 * @see ProportionalController.update
+	 * @see PIDFController
 	 */
 	@SuppressLint("DefaultLocale")
-	fun goto(targetPosition: Point, endPoint: Boolean = false): Double {
-		currentPosition = getPosition() // Get the current position of the robot // Set the path index to the current point in the path
+	fun goto(targetPosition: Point, endPoint: Boolean = false) {
+		currentPosition = tracking.position // Get the current position of the robot // Set the path index to the current point in the path
 		calculateVelocity() // Calculate the velocity of the robot
 		calculateAcceleration() // Calculate the acceleration of the robot
 		kinematicsTimer.reset() // Reset the timer to calculate the velocity
 		previousPosition = currentPosition.clone() // Set the previous position to the current position
 		previousVelocity = velocity // Set the previous velocity to the current velocity
 
-		val theta = currentPosition.rot // Get the current angle of the robot
+		val theta = currentPosition.rot// Get the current angle of the robot
 
 		// Calculate the error between the target and the current position
-		val error = euclideanDistance(targetPosition, currentPosition)
+		val error = currentPosition.distanceTo(targetPosition)
+		distanceFromTarget.set(currentPosition.distanceTo(targetPosition)) // Set the distance from the target point
 
 		// Calculate the speed factor (The speed that the robot should go to remove the stutter between points)
 		val speedFactor = if (endPoint) {
-			error
+			Pair(1.0, 1.0)
 		} else {
 			lookForNextError(currentPosition)
 		}
 
-		val deltaX = (targetPosition.x - currentPosition.x) * speedFactor
+		val deltaX = (targetPosition.x - currentPosition.x) * speedFactor.first
 
-		val deltaY = (targetPosition.y - currentPosition.y) * speedFactor
+		val deltaY = (targetPosition.y - currentPosition.y) * speedFactor.second
 
 		// Calculate the amount of drive error that the robot should move
 		val driveError = deltaX * cos(-theta) - deltaY * sin(-theta)
 		// Calculate the amount of strafe error that the robot should move
 		val strafeError = deltaX * sin(-theta) + deltaY * cos(-theta)
 
-		val drive = driveController.calculate(driveError)
-		val strafe = -strafeController.calculate(strafeError)
-		val rotate = -rotateController.calculate(theta)
-		bot.move(drive, strafe, rotate)
+		val drive  = driveController.directCalculate(driveError)
+		val strafe = strafeController.directCalculate(strafeError)
+		val rotate = rotateController.calculate(theta)
+		bot.move(drive, -strafe, -rotate)
 		if (debug) {
 			opMode.telemetry.addData("Drive", drive)
 			opMode.telemetry.addData("Strafe", strafe)
@@ -228,7 +188,6 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine(String.format("Acceleration: %.2f in/s^2", acceleration))
 			opMode.telemetry.addLine("--------------------")
 		}
-		return error
 	}
 
 	/**
@@ -237,9 +196,9 @@ class Movement<T: Odometry>(
 	 * It will keep moving as long as one of the controllers have been to the ready position.
 	 *
 	 * @see Point
-	 * @see ProportionalController
+	 * @see PIDFController
 	 */
-	private fun goToEndPoint() {
+	fun goToEndPoint(targetPoint: Point = finalPathPoint) {
 		resetController() // Reset the controllers
 		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
 		val loopTime = if (debug) {
@@ -254,15 +213,12 @@ class Movement<T: Odometry>(
 		var inStrafePosition = false
 		var inRotatePosition = false
 
-		driveController.setTarget(0.0) // Set the target for the drive controller to 0
-		strafeController.setTarget(0.0) // Set the target for the strafe controller to 0
 		rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
 
 		while (opMode.opModeIsActive()) {
-			val distance = goto(finalPathPoint, true)
-			distanceFromTarget.set(distance)
+			goto(targetPoint, true)
 			if (debug) {
-				if ( driveController.isAtTarget() && strafeController.isAtTarget() && rotateController.isAtTarget() ) {
+				if ( driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
 					break
 				}
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
@@ -270,8 +226,8 @@ class Movement<T: Odometry>(
 				loopCount++
 				opMode.telemetry.addData("Current Execution", "To End Point")
 				opMode.telemetry.addData("Position", currentPosition.toString())
-				opMode.telemetry.addData("Target Point", finalPathPoint.toString())
-				opMode.telemetry.addLine("Distance: ${distance}in")
+				opMode.telemetry.addData("Target Point", targetPoint.toString())
+				opMode.telemetry.addLine("Distance: ${distanceFromTarget.get()}in")
 				opMode.telemetry.addLine("--------------------")
 				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
 				opMode.telemetry.addLine("Average Loop Time: ${loopTimeValue / loopCount}ms")
@@ -282,7 +238,7 @@ class Movement<T: Odometry>(
 				if (inDrivePosition && inStrafePosition && inRotatePosition) {
 					if (
 						timeoutTimer.milliseconds() > timeout
-						|| (driveController.isAtTarget() && strafeController.isAtTarget() && rotateController.isAtTarget())
+						|| (driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget)
 					) {
 						break
 					}
@@ -290,13 +246,13 @@ class Movement<T: Odometry>(
 					timeoutTimer.reset()
 				}
 
-				if (driveController.isAtTarget() && !inDrivePosition) {
+				if (driveController.isAtTarget && !inDrivePosition) {
 					inDrivePosition = true
 				}
-				if (strafeController.isAtTarget() && !inStrafePosition) {
+				if (strafeController.isAtTarget && !inStrafePosition) {
 					inStrafePosition = true
 				}
-				if (rotateController.isAtTarget() && !inRotatePosition) {
+				if (rotateController.isAtTarget && !inRotatePosition) {
 					inRotatePosition = true
 				}
 			}
@@ -313,32 +269,60 @@ class Movement<T: Odometry>(
 	 *
 	 * @see Point
 	 */
-	private fun lookForNextError(position: Point): Double {
-		var distance = 0.0
+	private fun lookForNextError(position: Point): Pair<Double, Double> {
+		var distanceX = 0.0
+		var distanceY = 0.0
 		var point = position // initialize with position
 
 		for (i in currentPathIndex until path.size) { // Range
 			val nextPoint = path[i] // Get the next point in the path
-			val error = euclideanDistance(nextPoint, point) // Calculate the error between the next point and the current point
-			distance += error // Add the error to the distance
+			distanceX += abs(point.x - nextPoint.x) // Add the x distance to the distance
+			distanceY += abs(point.y - nextPoint.y) // Add the y distance to the distance
 			point = nextPoint // Set the current point to the next point
 			if (point.useError) { // Check if the point uses error and if it is not the end point
-				val nextNextPoint = path[i + 1] // Get the next point after the error point
-				val nextError = euclideanDistance(nextNextPoint, point) // Calculate the error between the next point and the current point
-				distance += nextError // Add the error to the distance
+				distanceX += abs(point.x - path[i + 1].x) // Add the x distance to the distance
+				distanceY += abs(point.y - path[i + 1].y) // Add the y distance to the distance
 				break
 			}
 		}
 
-		return distance
+		return Pair(distanceX, distanceY)
 	}
 
-	fun getPosition(): Point {
-		return tracking.getPosition()
+	private fun calculateTolerance(): Double {
+		return if (currentTargetPoint.useManualTorence) {
+			currentTargetPoint.tolerance // Use the manual tolerance if it is set
+		} else {
+			val pointAhead =
+				path[currentPathIndex + 1] // Get the point that is ahead of the current point
+			val distanceA = currentPosition.distanceTo(currentTargetPoint) // Calculate the distance between the current position and the target point
+			val distanceB = currentTargetPoint.distanceTo(pointAhead) // Calculate the distance between the target point and the next point
+			val distanceC = currentPosition.distanceTo(pointAhead) // Calculate the distance between the current position and the next point
+
+			val angleOfPath =
+				cosineLaw(distanceA, distanceB, distanceC) // Calculate the angle of the path
+			maxOf(
+				minimumVectorTolerance,
+				(Math.PI - angleOfPath) * minimumVectorTolerance
+			) // Calculate the vector tolerance
+		}
+	}
+
+	private fun setHeading() {
+		if (!currentTargetPoint.angleSet) {
+			val previousPoint = if (currentPathIndex - 1 < 0) {
+				tracking.position
+			} else {
+				path[currentPathIndex - 1]
+			}
+			currentTargetPoint.setRad(
+				previousPoint.rot
+			)
+		}
 	}
 
 	fun setPosition(point: Point) {
-		tracking.setPosition(point)
+		tracking.position = point
 	}
 
 	private fun calculateVelocity() {

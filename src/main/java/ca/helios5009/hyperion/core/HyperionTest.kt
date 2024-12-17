@@ -55,7 +55,7 @@ class HyperionTest<T: Odometry>(
 					"start" -> {
 						val eventCall = splitCommand.removeFirst()
 						val pointSplit = args.split(",")
-						val point = Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall)
+						val point = Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), eventCall).setDeg(pointSplit[2].toDouble())
 						pathBuilder.start(point)
 					}
 					"segment" -> {
@@ -93,13 +93,13 @@ class HyperionTest<T: Odometry>(
 
 				val pointSplit = pointString.split(",").toMutableList()
 				val point = if (usingError) {
-					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall).useError()
+					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), eventCall).setDeg(pointSplit[2].toDouble()).useError()
 				} else {
-					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), pointSplit[2].toDouble(), eventCall)
+					Point(pointSplit[0].toDouble(), pointSplit[1].toDouble(), eventCall).setDeg(pointSplit[2].toDouble())
 				}
 
 				if (!tolerance.startsWith('_') && tolerance != "0") {
-					point.setTolerance(tolerance.toDouble())
+					point.tolerance = tolerance.toDouble()
 				}
 				currentSegment.add(point)
 				currentSegmentPoint++

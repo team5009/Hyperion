@@ -21,43 +21,74 @@ import kotlin.math.abs
  * @see DcMotorEx
  */
 class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
-	private var power = 0.0
-	private var powerTolerance = 0.01
-	val motor = hardwareMap[motorName] as DcMotorEx
-
-	init {
-		motor.direction = DcMotorSimple.Direction.FORWARD
-	}
-
-	fun setPower(power: Double) {
-		if (abs(power - this.power) > powerTolerance || power == 0.0) {
-			this.power = power
-			motor.power = power
+	var power = 0.0
+		set(value) {
+			if (power != this.power) {
+				field = value
+				motor.power = power
+			}
 		}
-	}
 
-	fun setPowerWithoutTolerance(power: Double) {
-		if (power != this.power) {
-			this.power = power
-			motor.power = power
+	var zeroPowerBehavior: DcMotor.ZeroPowerBehavior
+		get() = motor.zeroPowerBehavior
+		set(value) {
+			motor.zeroPowerBehavior = value
 		}
-	}
+
+	/**
+	 * Sets the mode of the motor.
+	 * @param mode the mode to set.
+	 */
+	var mode get() = motor.mode
+		set(value) {
+			motor.mode = value
+		}
 
 	/**
 	 * Returns the current reading of the encoder for this motor.
 	 * The units for this reading, that is, the number of ticks per revolution, are specific to the motor/ encoder in question, and thus are not specified here.
 	 * @return the current reading of the encoder for this motor.
 	 */
-	fun getPosition(): Int {
-		return motor.currentPosition
-	}
+	val position get() = motor.currentPosition
 
 	/**
 	 * Returns the current velocity of the motor, in ticks per second.
 	 * @return the current velocity of the motor.
 	 */
-	fun getVelocity(): Double {
-		return motor.velocity
+	val velocity get() = motor.velocity
+
+	/**
+	 * Returns whether the current consumption of this motor exceeds the alert threshold.
+	 * @return true if the current consumption exceeds the alert threshold.
+	 */
+	val isOverCurrent get() = motor.isOverCurrent
+
+	/**
+	 * Sets the power differential that will be considered the same power.
+	 * @param tolerance the power tolerance to set.
+	 */
+	var powerTolerance = 0.01
+		set(value) {
+			if (value < 0) {
+				throw IllegalArgumentException("Tolerance must be greater than 0")
+			}
+			field = value
+		}
+
+	val motor = hardwareMap[motorName] as DcMotorEx
+
+	init {
+		motor.direction = DcMotorSimple.Direction.FORWARD
+	}
+
+	/**
+	 * Sets the power of the motor.
+	 * @param power the power to set.
+	 */
+	fun setPower(power: Double) {
+		if (abs(power - this.power) > powerTolerance || power == 0.0) {
+			this.power = power
+		}
 	}
 
 	/**
@@ -66,43 +97,6 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	 */
 	fun getCurrentDraw(unit: CurrentUnit): Double {
 		return motor.getCurrent(unit)
-	}
-
-	/**
-	 * Returns whether the current consumption of this motor exceeds the alert threshold.
-	 * @return true if the current consumption exceeds the alert threshold.
-	 */
-	fun isOverCurrent(): Boolean {
-		return motor.isOverCurrent
-	}
-
-	/* Setters */
-
-	/**
-	 * Sets zero power behavior for the motor.
-	 * @param behavior the behavior to set.
-	 */
-	fun setZeroPowerBehavior(behavior: DcMotor.ZeroPowerBehavior) {
-		motor.zeroPowerBehavior = behavior
-	}
-
-	/**
-	 * Sets the mode of the motor.
-	 * @param mode the mode to set.
-	 */
-	fun setMode(mode: DcMotor.RunMode) {
-		motor.mode = mode
-	}
-
-	/**
-	 * Sets the power differential that will be considered the same power.
-	 * @param tolerance the power tolerance to set.
-	 */
-	fun setPowerTolerance(tolerance: Double) {
-		if (tolerance < 0) {
-			throw IllegalArgumentException("Tolerance must be greater than 0")
-		}
-		powerTolerance = tolerance
 	}
 
 	/* Utility */
@@ -117,7 +111,6 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 
 	/**
 	 * Reverse the motor.
-	 *
 	 */
 	fun reverse(): HyperionMotor {
 		motor.direction = DcMotorSimple.Direction.REVERSE

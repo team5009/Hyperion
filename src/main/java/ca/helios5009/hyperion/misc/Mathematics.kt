@@ -7,10 +7,13 @@ import kotlin.math.sqrt
 
 /** Returns the  */
 fun relativeRadian(angle: Double): Double {
-	if (angle < 0) {
-		return -((-angle + Math.PI) % (2 * Math.PI) - Math.PI)
+	val angleOut = if (angle < 0) {
+		-((-angle + Math.PI) % (2 * Math.PI) - Math.PI)
+	} else {
+		(angle + Math.PI) % (2 * Math.PI) - Math.PI
 	}
-	return (angle + Math.PI) % (2 * Math.PI) - Math.PI
+	if (angleOut >= Math.PI) return -Math.PI
+	return angleOut
 }
 
 fun euclideanDistance(p1: Point, p2: Point): Double {
@@ -44,11 +47,11 @@ fun generateBezier(pt0: Point, ct0: Point, ct1: Point, pt1: Point): MutableList<
 			calcRot + 2 * Math.PI
 
 		when(t) {
-			0.0 -> points.add(Point(x, y, rot, pt0.event))
-			1.0 -> points.add(Point(x, y, rot, pt1.event))
-			0.25 -> points.add(Point(x, y, rot, ct0.event))
-			0.75 -> points.add(Point(x, y, rot, ct1.event))
-			else -> points.add(Point(x, y, rot))
+			0.0 -> points.add(Point(x, y, pt0.event).setRad(rot))
+			1.0 -> points.add(Point(x, y, pt1.event).setRad(rot))
+			0.25 -> points.add(Point(x, y, ct0.event).setRad(rot))
+			0.75 -> points.add(Point(x, y, ct1.event).setRad(rot))
+			else -> points.add(Point(x, y).setRad(rot))
 		}
 	}
 

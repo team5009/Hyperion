@@ -10,9 +10,37 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 class Otos(
 	hardwareMap: HardwareMap,
 	name: String,
-	offset: Point = Point(0.0, 0.0, 0.0)
+	offset: Point = Point(0.0, 0.0)
 ): Odometry {
 	val otos = hardwareMap.get(name) as SparkFunOTOS
+
+	var linearScalar: Double
+		get() = otos.linearScalar
+		set(value) { otos.linearScalar = value }
+
+	var angularScalar: Double
+		get() = otos.angularScalar
+		set(value) { otos.angularScalar = value }
+
+	var linearUnit: DistanceUnit
+		get() = otos.linearUnit
+		set(value) { otos.linearUnit = value }
+
+	var angularUnit: AngleUnit
+		get() = otos.angularUnit
+		set(value) { otos.angularUnit = value }
+
+	var offset: Point
+		get() = Point(otos.offset.x, otos.offset.y).setRad(otos.offset.h)
+		set(value) { otos.offset = SparkFunOTOS.Pose2D(value.x, value.y, value.rot) }
+
+	val acceleration get() = Point(otos.acceleration.x, otos.acceleration.y)
+
+	val velocity get() = Point(otos.velocity.x, otos.velocity.y)
+
+	override var position: Point
+		get() = Point(otos.position.x, otos.position.y).setRad(otos.position.h)
+		set(value) { otos.position = SparkFunOTOS.Pose2D(value.x, value.y, value.rot) }
 
 	init {
 		otos.initialize()
@@ -27,51 +55,9 @@ class Otos(
 		otos.resetTracking()
 	}
 
-	fun resetTracking() {
-		otos.resetTracking()
-	}
-
-	override fun getPosition(): Point {
-		val pose = otos.position
-		return Point(pose.x, pose.y, pose.h)
-	}
-
-	override fun setPosition(point: Point) {
-		otos.position = SparkFunOTOS.Pose2D(point.x, point.y, point.rot)
-	}
-
-	fun setLinearScalar(scalar: Double) {
-		otos.linearScalar = scalar
-	}
-
-	fun setAngularScalar(scalar: Double) {
-		otos.angularScalar = scalar
-	}
-
-	fun setLinearUnit(unit: DistanceUnit) {
-		otos.linearUnit = unit
-	}
-
-	fun setAngularUnit(unit: AngleUnit) {
-		otos.angularUnit = unit
-	}
-
-	fun setOffset(offset: Point) {
-		otos.offset = SparkFunOTOS.Pose2D(offset.x, offset.y, offset.rot)
-	}
-
 	fun calibrateImu() {
 		otos.calibrateImu()
 	}
 
-	fun getVelocity(): Point {
-		val velocity = otos.velocity
-		return Point(velocity.x, velocity.y, velocity.h)
-	}
-
-	fun getAcceleration(): Point {
-		val acceleration = otos.acceleration
-		return Point(acceleration.x, acceleration.y, acceleration.h)
-	}
 
 }

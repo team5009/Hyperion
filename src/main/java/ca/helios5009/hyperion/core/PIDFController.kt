@@ -46,6 +46,23 @@ class PIDFController(
 
 	private var circular = false;
 
+	/**
+	 * Returns true if the error is within the percentage of the total input range, determined by [setTolerance](setTolerance).
+	 * @see setTolerance
+	 * @return True if the error is within the tolerance.
+	 */
+	val isAtTarget get() = abs(positionError) < positionTolerance && abs(velocityError) < velocityTolerance;
+
+	/**
+	 * Returns the tolerances of the controller.
+	 */
+	val tolerances get() = Pair(positionTolerance, velocityTolerance);
+
+	/**
+	 * Returns the coefficients of the controller.
+	 */
+	val coefficients get() = listOf(kP, kI, kD, kF);
+
 	fun reset() {
 		totalError = 0.0;
 		prevPositionError = 0.0;
@@ -57,20 +74,11 @@ class PIDFController(
 	 *
 	 * @param positionTolerance Position error which is tolerable.
 	 * @param velocityTolerance Velocity error which is tolerable.
-	 * @see atSetPoint
+	 * @see isAtTarget
 	 */
 	fun setTolerance(positionTolerance: Double, velocityTolerance: Double) {
 		this.positionTolerance = positionTolerance;
 		this.velocityTolerance = velocityTolerance;
-	}
-
-	/**
-	 * Returns true if the error is within the percentage of the total input range, determined by [setTolerance](setTolerance).
-	 * @see setTolerance
-	 * @return True if the error is within the tolerance.
-	 */
-	fun isAtTarget(): Boolean {
-		return abs(positionError) < positionTolerance && abs(velocityError) < velocityTolerance;
 	}
 
 	/**
@@ -82,7 +90,6 @@ class PIDFController(
 		velocityError = (positionError - prevPositionError) / period;
 	}
 
-
 	/**
 	 * Enables the controller to wrap around the angle.
 	 */
@@ -90,18 +97,11 @@ class PIDFController(
 		circular = true;
 	}
 
-	fun angleWrap(err: Double): Double {
+	private fun angleWrap(err: Double): Double {
 		var error = err;
 		while (error > Math.PI) error -= 2 * Math.PI
 		while (error <= -Math.PI) error += 2 * Math.PI
 		return error;
-	}
-
-	/**
-	 * @return The output of the controller.
-	 */
-	fun getCoefficients(): List<Double> {
-		return listOf(kP, kI, kD, kF);
 	}
 
 	/**
@@ -114,8 +114,7 @@ class PIDFController(
 		prevPositionError = positionError;
 		val currentTime = System.nanoTime() / 1e9;
 
-		if (lastTime.equals(0.0))
-			lastTime = currentTime;
+		if (lastTime.equals(0.0)) lastTime = currentTime;
 
 		period = currentTime - lastTime;
 		lastTime = currentTime;
@@ -124,7 +123,8 @@ class PIDFController(
 			measuredValue = pv;
 		}
 
-		positionError = angleWrap(targetPoint - measuredValue);
+		val err = targetPoint - measuredValue;
+		positionError = if (circular) {angleWrap(err)} else {err};
 
 		velocityError = if (abs(period) > 1e-6) {
 			(positionError - prevPositionError) / period;
@@ -144,6 +144,30 @@ class PIDFController(
 		}
 
 		return kP * positionError + kI * totalError + kD * velocityError + kF * targetPoint;
+	}
+
+	fun directCalculate(error: Double): Double {
+		prevPositionError = positionError;
+		val currentTime = System.nanoTime() / 1e9;
+		if (lastTime.equals(0.0)) lastTime = currentTime;
+
+		period = currentTime - lastTime;
+		lastTime = currentTime;
+		positionError = if (circular) {angleWrap(error)} else {error};
+
+		velocityError = if (abs(period) > 1e-6) {
+			(positionError - prevPositionError) / period;
+		} else {
+			0.0;
+		}
+
+		totalError += period * (error);
+		totalError = if (totalError < minIntegral) {
+			minIntegral
+		} else {
+			min(maxIntegral, totalError)
+		}
+		return kP * positionError + kI * totalError + kD * velocityError
 	}
 
 	/**
@@ -166,9 +190,7 @@ class PIDFController(
 	 * @return the next output using the current measured value via
 	 * @see calculate(Double)
 	 */
-	fun calculate() : Double {
-		return calculate(measuredValue);
-	}
+	fun calculate() = calculate(measuredValue);
 
 	fun setPIDF(kP: Double, kI: Double, kD: Double, kF: Double) {
 		this.kP = kP;
@@ -204,9 +226,7 @@ class PIDFController(
 		return this;
 	}
 
-	fun getPeriod(): Double {
-		return period;
-	}
+	fun getPeriod() = period;
 
 
 

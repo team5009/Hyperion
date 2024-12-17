@@ -3,7 +3,6 @@ package ca.helios5009.hyperion.pathing
 import ca.helios5009.hyperion.core.Motors
 import ca.helios5009.hyperion.core.Movement
 import ca.helios5009.hyperion.core.PIDFController
-import ca.helios5009.hyperion.core.ProportionalController
 import ca.helios5009.hyperion.hardware.Deadwheels
 import ca.helios5009.hyperion.misc.Odometry
 import ca.helios5009.hyperion.hardware.Otos
@@ -34,8 +33,8 @@ import com.qualcomm.robotcore.util.ElapsedTime
 class PathBuilder<T: Odometry>(
 	private val opMode: LinearOpMode,
 	private val listener: EventListener,
-	bot: Motors,
-	tracking: T,
+	private val bot: Motors,
+	private val tracking: T,
 	private val debug: Boolean = false
 ) {
 	enum class PathState {
@@ -44,8 +43,32 @@ class PathBuilder<T: Odometry>(
 		WAITING
 	}
 
+	/**
+	 * The current position of the bot.
+	 */
+	var position get() = tracking.position
+		private set(value) {
+			tracking.position = value
+		}
+
+	/**
+	 * The current velocity of the bot.
+	 */
+	val acceleration get() = movement.acceleration
+
+	/**
+	 * The current velocity of the bot.
+	 */
+	val velocity get() = movement.velocity
+
+	/**
+	 * The distance from the current target point.
+	 */
+	val distanceFromTarget get() = movement.distanceFromTarget.get()
+
 	private val movement = Movement<T>(opMode, listener, bot, debug)
 	private var state = PathState.ENDED
+	private var holdingPosition = Point(0.0, 0.0).setRad(0.0)
 
 	init {
 		movement.tracking = tracking
@@ -61,7 +84,7 @@ class PathBuilder<T: Odometry>(
 		}
 		state = PathState.RUNNING
 		listener.call(origin.event)
-		movement.setPosition(origin)
+		position = origin
 		return this
 	}
 
@@ -69,7 +92,7 @@ class PathBuilder<T: Odometry>(
 	 * Move the robot to a point.
 	 * @param point The point to move to.
 	 */
-	@Deprecated("Only use Continuous")
+	@Deprecated("Only use Segments or relativeLine")
 	fun line(point: Point): PathBuilder<T> {
 		when (state) {
 			PathState.ENDED -> {
@@ -79,9 +102,31 @@ class PathBuilder<T: Odometry>(
 				throw IllegalStateException("Path is waiting")
 			}
 			PathState.RUNNING -> {
-				movement.goto(point)
+				movement.run(listOf(point))
 			}
 		}
+		return this
+	}
+
+	fun relativeLine(point: Point, powerRatio: Double = 1.0): PathBuilder<T> {
+		when (state) {
+			PathState.ENDED -> {
+				throw IllegalStateException("Path has not started")
+			}
+			PathState.WAITING -> {
+				throw IllegalStateException("Path is waiting")
+			}
+			PathState.RUNNING -> {
+
+			}
+		}
+
+		holdingPosition = (movement.currentPosition + point)
+		bot.setPowerRatio(powerRatio)
+		listener.call(point.event)
+		movement.goToEndPoint(holdingPosition)
+		bot.setPowerRatio(1.0)
+
 		return this
 	}
 
@@ -192,15 +237,15 @@ class PathBuilder<T: Odometry>(
 		var totalLoopTime = 0.0
 		var loopCount = 0
 		listener.call(event)
-		val currentPosition = movement.getPosition()
+		val currentPosition = movement.currentPosition
 		while(opMode.opModeIsActive()) {
-			val distance = movement.goto(currentPosition, true)
+			movement.goto(currentPosition, true)
 			if (debug) {
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 				totalLoopTime += loopTimeValue
 				loopCount++
 				opMode.telemetry.addLine("Waiting for Autonomous to end")
-				opMode.telemetry.addLine("Distance: ${distance}in")
+				opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
 				opMode.telemetry.addLine("Loop : ${loopTimeValue}ms")
 				opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 				opMode.telemetry.update()
@@ -209,7 +254,6 @@ class PathBuilder<T: Odometry>(
 		}
 		movement.stopMovement()
 	}
-
 
 	/**
 	 * Wait for a certain amount of time. Bot will hold it's position as much as it can.
@@ -239,16 +283,16 @@ class PathBuilder<T: Odometry>(
 		var totalLoopTime = 0.0
 		var loopCount = 0
 		listener.call(event)
-		val currentPosition = movement.getPosition()
+		val currentPosition = movement.currentPosition
 		val timer = ElapsedTime()
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
-			val distance = movement.goto(currentPosition, true)
+			movement.goto(currentPosition, true)
 			if (debug) {
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 				totalLoopTime += loopTimeValue
 				loopCount++
 				opMode.telemetry.addLine("Waiting for ${time}ms")
-				opMode.telemetry.addLine("Distance: ${distance}in")
+				opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
 				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
 				opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 				opMode.telemetry.update()
@@ -286,18 +330,18 @@ class PathBuilder<T: Odometry>(
 		var totalLoopTime = 0.0
 		var loopCount = 0
 		listener.call(event)
-		val currentPosition = movement.getPosition()
+		val currentPosition = movement.currentPosition
 		if (message.startsWith('_')) {
 			val timer = ElapsedTime()
 			while(opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
-				val distance = movement.goto(currentPosition, true)
+				movement.goto(currentPosition, true)
 
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					totalLoopTime += loopTimeValue
 					loopCount++
 					opMode.telemetry.addLine("Waiting for 1500ms")
-					opMode.telemetry.addLine("Distance: ${distance}in")
+					opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
 					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
 					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					opMode.telemetry.update()
@@ -306,13 +350,13 @@ class PathBuilder<T: Odometry>(
 			}
 		} else {
 			while(opMode.opModeIsActive() && !listener.isInQueue(message)) {
-				val distance = movement.goto(currentPosition, true)
+				movement.goto(currentPosition, true)
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					totalLoopTime += loopTimeValue
 					loopCount++
 					opMode.telemetry.addData("Waiting for", message)
-					opMode.telemetry.addLine("Distance: ${distance}in")
+					opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
 					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
 					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					opMode.telemetry.update()
@@ -325,57 +369,38 @@ class PathBuilder<T: Odometry>(
 	}
 
 	/**
-	 * Get the current position of the bot.
-	 * @return The current position of the bot.
-	 */
-	fun getVelocity(): Double {
-		return movement.velocity
-	}
-
-	/**
-	 * Get the acceleration of the bot.
-	 * @return The acceleration of the bot.
-	 */
-	fun getAcceleration(): Double {
-		return movement.acceleration
-	}
-
-	/*
-	 * Get the distance from the current target point
-	 */
-	fun getDistanceFromTarget(): Double {
-		return movement.distanceFromTarget.get()
-	}
-
-	/**
 	 * Set the timeout for the end of segments.
 	 * This timeout is used to make sure the bot doesn't get stuck in a segment when stuck trying to auto correct.
 	 * @param time The time in milliseconds.
 	 */
-	fun setTimeout(time: Double) {
+	fun setTimeout(time: Double): PathBuilder<T> {
 		movement.timeout = time
+		return this
 	}
 
-	fun setDistanceTolerance(tolerance: Double) {
+	fun setDistanceTolerance(tolerance: Double): PathBuilder<T> {
 		movement.minimumVectorTolerance = tolerance
+		return this
 	}
 
 	/**
 	 * Set constants for the Drive PID controller
 	 * @see PIDFController
 	 */
-	fun setDriveConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double) {
+	fun setDriveConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
 		movement.driveController = PIDFController(kP, kI, kD, kF)
 		movement.driveController.setTolerance(posTolerance, velTolerance)
+		return this
 	}
 
 	/**
 	 * Set constants for the Strafe PID controller
 	 * @see PIDFController
 	 */
-	fun setStrafeConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double) {
+	fun setStrafeConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
 		movement.strafeController = PIDFController(kP, kI, kD, kF)
 		movement.strafeController.setTolerance(posTolerance, velTolerance)
+		return this
 	}
 
 	/**
@@ -383,9 +408,11 @@ class PathBuilder<T: Odometry>(
 	 *
 	 * @see PIDFController
 	 */
-	fun setRotateConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double) {
+	fun setRotateConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
 		movement.rotateController = PIDFController(kP, kI, kD, kF)
 		movement.rotateController.setTolerance(posTolerance, velTolerance)
+		movement.rotateController.setAngleWrapAround()
+		return this
 	}
 
 }
