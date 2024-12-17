@@ -25,12 +25,20 @@ class Motors(
 	private val bl: HyperionMotor = HyperionMotor(hardwareMap, backLeft).reverse()
 	private val br: HyperionMotor = HyperionMotor(hardwareMap, backRight)
 	private val motorList = arrayOf(fl, fr, bl, br)
+	var mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
+		set(value) {
+			field = value
+			motorList.forEach { it.mode = value }
+		}
+	var zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+		set(value) {
+			field = value
+			motorList.forEach { it.zeroPowerBehavior = value }
+		}
 
 	init {
-		motorList.forEach {
-			it.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
-			it.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
-		}
+		mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
+		zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
 	}
 
 	/**
@@ -54,7 +62,7 @@ class Motors(
 		)
 
 		motorList.forEachIndexed { index, motor ->
-			motor.setPower(powerList[index] / max * powRatio)
+			motor.setPower(powerList[index] / max)
 		}
 	}
 
@@ -88,11 +96,11 @@ class Motors(
 		)
 
 		motorList.forEachIndexed { index, motor ->
-			motor.power = powerList[index] / max * powRatio
+			motor.power = powerList[index] / max
 		}
 	}
 
-	fun stop () {
+	fun stop() {
 		fl.stop()
 		fr.stop()
 		bl.stop()
