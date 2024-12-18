@@ -28,24 +28,12 @@ class Point(var x: Double, var y: Double, val event: String = "_") {
 			useManualTorence = true
 		}
 
-	var type = PointType.Global
-		private set
 	var useError = false
 		private set
 	var useManualTorence = false
 		private set
 	var angleSet = false
 		private set
-	/**
-	 * Sets the point to be a local point.
-	 * Local points are relative to the current position of the robot
-	 * @return The point
-	 */
-	@Deprecated("Breaks segment algorithm")
-	fun setLocal(): Point {
-		type = PointType.Relative
-		return this
-	}
 
 	/**
 	 * Sets the point to use error.
@@ -77,6 +65,11 @@ class Point(var x: Double, var y: Double, val event: String = "_") {
 	fun setDeg(rot: Double): Point {
 		this.rot = rot * Math.PI / 180
 		angleSet = true
+		return this
+	}
+
+	fun setTolerance(tolerance: Double): Point {
+		this.tolerance = tolerance
 		return this
 	}
 
@@ -133,8 +126,4 @@ class Point(var x: Double, var y: Double, val event: String = "_") {
 	override fun hashCode() = Objects.hash(x, y, rot)
 
 
-}
-
-enum class PointType {
-	Global, Relative
 }

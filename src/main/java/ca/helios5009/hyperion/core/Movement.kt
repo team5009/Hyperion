@@ -63,6 +63,14 @@ class Movement<T: Odometry>(
 	var currentPosition = Point(0.0, 0.0)
 		private set
 	private var previousPosition = Point(0.0, 0.0)
+	var lastKnowRotation = 0.0
+	var lastKnownPoint = Point(0.0, 0.0)
+		set(value) {
+			field = value
+			if (value.angleSet) {
+				lastKnowRotation = value.rot
+			}
+		}
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
@@ -121,9 +129,11 @@ class Movement<T: Odometry>(
 				opMode.opModeIsActive() &&
 				(
 					distanceFromTarget.get() > vectorTolerance ||
-					abs(rotationError) > rotateController.tolerances.first * 2.0
+					abs(rotationError) >= rotateController.tolerances.first * 2.0
 				)
 			) // Loop until the robot is within the vector tolerance
+			lastKnowRotation = currentTargetPoint.rot
+			lastKnownPoint = currentTargetPoint
 			currentPathIndex++ // Increment the path index
 		}
 		listener.call(finalPathPoint.event) // Call the event at the final point
@@ -199,6 +209,7 @@ class Movement<T: Odometry>(
 	 * @see PIDFController
 	 */
 	fun goToEndPoint(targetPoint: Point = finalPathPoint) {
+		currentTargetPoint = targetPoint // Set the current target point to the final point
 		resetController() // Reset the controllers
 		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
 		val loopTime = if (debug) {
@@ -212,11 +223,11 @@ class Movement<T: Odometry>(
 		var inDrivePosition = false
 		var inStrafePosition = false
 		var inRotatePosition = false
-
+		setHeading()
 		rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
 
 		while (opMode.opModeIsActive()) {
-			goto(targetPoint, true)
+			goto(currentTargetPoint, true)
 			if (debug) {
 				if ( driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
 					break
@@ -256,8 +267,9 @@ class Movement<T: Odometry>(
 					inRotatePosition = true
 				}
 			}
-
 		}
+		lastKnowRotation = currentTargetPoint.rot
+		lastKnownPoint = currentTargetPoint
 	}
 
 	/**
@@ -310,13 +322,8 @@ class Movement<T: Odometry>(
 
 	private fun setHeading() {
 		if (!currentTargetPoint.angleSet) {
-			val previousPoint = if (currentPathIndex - 1 < 0) {
-				tracking.position
-			} else {
-				path[currentPathIndex - 1]
-			}
 			currentTargetPoint.setRad(
-				previousPoint.rot
+				lastKnowRotation
 			)
 		}
 	}

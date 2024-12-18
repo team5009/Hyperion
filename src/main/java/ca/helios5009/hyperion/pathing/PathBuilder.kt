@@ -49,6 +49,10 @@ class PathBuilder<T: Odometry>(
 	var position get() = tracking.position
 		private set(value) {
 			tracking.position = value
+			movement.lastKnownPoint = value
+			if (value.angleSet) {
+				movement.lastKnowRotation = value.rot
+			}
 		}
 
 	/**
@@ -66,9 +70,28 @@ class PathBuilder<T: Odometry>(
 	 */
 	val distanceFromTarget get() = movement.distanceFromTarget.get()
 
+	/**
+	 * The max speed of the bot.
+	 */
+	var maxSpeed = 1.0
+		set(value) {
+			if (maxSpeed <= 0 && maxSpeed > 1) {
+				throw IllegalArgumentException("Max speed must be between 0 and 1")
+			}
+			field = value
+			bot.setPowerRatio(value)
+		}
+
 	private val movement = Movement<T>(opMode, listener, bot, debug)
-	private var state = PathState.ENDED
+	var state = PathState.ENDED
+		private set
 	private var holdingPosition = Point(0.0, 0.0).setRad(0.0)
+		set(value) {
+			field = value
+			if (value.angleSet) {
+				movement.lastKnowRotation = value.rot
+			}
+		}
 
 	init {
 		movement.tracking = tracking
@@ -81,6 +104,9 @@ class PathBuilder<T: Odometry>(
 	fun start(origin: Point): PathBuilder<T> {
 		if (state == PathState.RUNNING) {
 			throw IllegalStateException("Path is already running")
+		}
+		if(!origin.angleSet) {
+			throw IllegalArgumentException("Origin point must have an angle set")
 		}
 		state = PathState.RUNNING
 		listener.call(origin.event)
@@ -108,6 +134,10 @@ class PathBuilder<T: Odometry>(
 		return this
 	}
 
+	/**
+	 * Move the robot to a point relative to the current position.
+	 * @param point How much to move the robot.
+	 */
 	fun relativeLine(point: Point, powerRatio: Double = 1.0): PathBuilder<T> {
 		when (state) {
 			PathState.ENDED -> {
@@ -121,7 +151,7 @@ class PathBuilder<T: Odometry>(
 			}
 		}
 
-		holdingPosition = (movement.currentPosition + point)
+		holdingPosition = (movement.lastKnownPoint + point)
 		bot.setPowerRatio(powerRatio)
 		listener.call(point.event)
 		movement.goToEndPoint(holdingPosition)
@@ -283,10 +313,10 @@ class PathBuilder<T: Odometry>(
 		var totalLoopTime = 0.0
 		var loopCount = 0
 		listener.call(event)
-		val currentPosition = movement.currentPosition
+		holdingPosition = movement.lastKnownPoint
 		val timer = ElapsedTime()
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
-			movement.goto(currentPosition, true)
+			movement.goto(holdingPosition, true)
 			if (debug) {
 				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 				totalLoopTime += loopTimeValue
@@ -330,11 +360,11 @@ class PathBuilder<T: Odometry>(
 		var totalLoopTime = 0.0
 		var loopCount = 0
 		listener.call(event)
-		val currentPosition = movement.currentPosition
+		holdingPosition = movement.lastKnownPoint
 		if (message.startsWith('_')) {
 			val timer = ElapsedTime()
 			while(opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
-				movement.goto(currentPosition, true)
+				movement.goto(holdingPosition, true)
 
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
@@ -350,7 +380,7 @@ class PathBuilder<T: Odometry>(
 			}
 		} else {
 			while(opMode.opModeIsActive() && !listener.isInQueue(message)) {
-				movement.goto(currentPosition, true)
+				movement.goto(holdingPosition, true)
 				if (debug) {
 					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
 					totalLoopTime += loopTimeValue
@@ -368,6 +398,11 @@ class PathBuilder<T: Odometry>(
 		return this
 	}
 
+	fun moveHoldPosition(point: Point) {
+		holdingPosition = holdingPosition + point
+		movement.lastKnownPoint = point
+	}
+
 	/**
 	 * Set the timeout for the end of segments.
 	 * This timeout is used to make sure the bot doesn't get stuck in a segment when stuck trying to auto correct.
@@ -382,6 +417,7 @@ class PathBuilder<T: Odometry>(
 		movement.minimumVectorTolerance = tolerance
 		return this
 	}
+
 
 	/**
 	 * Set constants for the Drive PID controller
