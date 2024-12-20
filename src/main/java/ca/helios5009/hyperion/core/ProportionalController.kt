@@ -4,6 +4,11 @@ import com.qualcomm.robotcore.util.ElapsedTime
 import kotlin.math.abs
 import kotlin.math.sign
 
+/**
+ * Closed loop Proportional Controller
+ * @see PIDFController
+ */
+@Deprecated("Use PIDFController")
 class ProportionalController(
 	private val gain: Double,
 	private val accelLimit: Double,
@@ -56,7 +61,6 @@ class ProportionalController(
 					output = lastOutput - dV // limit the rate of decrease
 				}
 			}
-
 			output
 		}
 		lastOutput = output
