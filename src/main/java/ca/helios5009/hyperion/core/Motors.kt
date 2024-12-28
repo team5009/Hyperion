@@ -53,10 +53,14 @@ class Motors(
 		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
 		val powRatio = powerRatio.get()
 		val max = maxOf(powRatio, maxPower)
-		fl.setPowerWithTol((drive + strafe + rotate) / max)
-		fr.setPowerWithTol((drive - strafe - rotate) / max)
-		bl.setPowerWithTol((drive - strafe + rotate) / max)
-		br.setPowerWithTol((drive + strafe - rotate) / max)
+		listOf(
+			drive + strafe + rotate,
+			drive - strafe - rotate,
+			drive - strafe + rotate,
+			drive + strafe - rotate
+		).forEachIndexed { index, power ->
+			motorList[index].setPowerWithTol(power / max)
+		}
 	}
 
 	/**
@@ -81,10 +85,14 @@ class Motors(
 		val powRatio = powerRatio.get()
 		val max = maxOf(powRatio, maxPower)
 
-		fl.power = (drive + strafe + rotate) / max
-		fr.power = (drive - strafe - rotate) / max
-		bl.power = (drive - strafe + rotate) / max
-		br.power = (drive + strafe - rotate) / max
+		listOf(
+			drive + strafe + rotate,
+			drive - strafe - rotate,
+			drive - strafe + rotate,
+			drive + strafe - rotate
+		).forEachIndexed { index, power ->
+			motorList[index].power = power / max
+		}
 	}
 
 	fun stop() {

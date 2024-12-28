@@ -74,6 +74,13 @@ class Movement<T: Odometry>(
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
+	private val loopTime = if (debug) {
+		ElapsedTime()
+	} else {
+		null
+	}
+	private var totalLoopTime = 0.0
+	private var loopCount = 0
 
 	/**
 	 * Run the path that is given to the robot.
@@ -86,14 +93,6 @@ class Movement<T: Odometry>(
 	fun run(points: List<Point>) {
 		path = points // Set the path to the list of points
 		finalPathPoint = points.last() // Get the final point in the path
-
-		val loopTime = if (debug) {
-			ElapsedTime()
-		} else {
-			null
-		}
-		var totalLoopTime = 0.0
-		var loopCount = 0
 
 		// Set the final path point to the last point in the list
 		currentPathIndex = 0 // Set the current path index to 0
@@ -111,12 +110,9 @@ class Movement<T: Odometry>(
 				goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
 				val rotationError = rotateController.positionError // Get the rotation error
 				if (debug) {
-					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-					totalLoopTime += loopTimeValue
-					loopCount++
+
 					opMode.telemetry.addData("Current Execution", "Through Path")
-					opMode.telemetry.addData("Position", currentPosition.toString())
-					opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
+
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
 
 					opMode.telemetry.addLine("--------------------")
@@ -188,15 +184,20 @@ class Movement<T: Odometry>(
 		val rotate = rotateController.calculate(theta)
 		bot.move(drive, -strafe, -rotate)
 		if (debug) {
-			opMode.telemetry.addData("Drive", drive)
-			opMode.telemetry.addData("Strafe", strafe)
-			opMode.telemetry.addData("Rotate", rotate)
-			opMode.telemetry.addData("Speed Factor", speedFactor)
+			val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+			totalLoopTime += loopTimeValue
+			loopCount++
+			opMode.telemetry.addLine(String.format("Drive: %.2f", drive))
+			opMode.telemetry.addLine(String.format("Strafe: %.2f", strafe))
+			opMode.telemetry.addLine(String.format("Rotate: %.2f", rotate))
+			opMode.telemetry.addLine(String.format("Speed Factor: %.2f in x, %.2f in y", speedFactor.first, speedFactor.second))
 			opMode.telemetry.addLine("--------------------")
-			opMode.telemetry.addLine("Distance: ${error}in")
+			opMode.telemetry.addLine(String.format("Distance: %.3f in", error))
 			opMode.telemetry.addLine(String.format("Velocity: %.2f in/s", velocity))
 			opMode.telemetry.addLine(String.format("Acceleration: %.2f in/s^2", acceleration))
 			opMode.telemetry.addLine("--------------------")
+			opMode.telemetry.addData("Position", currentPosition.toString())
+			opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
 		}
 	}
 
@@ -240,6 +241,7 @@ class Movement<T: Odometry>(
 				opMode.telemetry.addData("Target Point", targetPoint.toString())
 				opMode.telemetry.addLine("Distance: ${distanceFromTarget.get()}in")
 				opMode.telemetry.addLine("--------------------")
+
 				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
 				opMode.telemetry.addLine("Average Loop Time: ${loopTimeValue / loopCount}ms")
 
@@ -344,6 +346,26 @@ class Movement<T: Odometry>(
 		acceleration = deltaVelocity / deltaTime
 	}
 
+
+	/**
+	 * Calculate the loop time and the average loop time.
+	 * This is used to calculate the loop time and the average loop time.
+	 * @return The loop time and the average loop time
+	 */
+	private fun calculateLoopTime(): Pair<Double, Double> {
+		val loopTimeValue = loopTime?.milliseconds() ?: 0.0
+		totalLoopTime += loopTimeValue
+		loopCount++
+
+		return Pair(loopTimeValue, totalLoopTime / loopCount)
+	}
+
+	/**
+	 * Reset the controllers.
+	 * This usually is used to reset the controllers after the robot has reached the target point.
+	 *
+	 * @see PIDFController
+	 */
 	fun resetController() {
 		driveController.reset()
 		strafeController.reset()

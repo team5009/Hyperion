@@ -15,15 +15,22 @@ import kotlin.math.abs
  * Every time the power is changed, the call from the control hub to the motor takes time.
  * Caching makes it so the motor doesn't have to be set to the same power.
  *
- * @param motor The DcMotorEx that the HyperionMotor is controlling.
+ * @param hardwareMap the hardware map to get the motor from.
+ * @param motorName the name of the motor in the hardware map.
  *
  * @author Joshua
  * @see DcMotorEx
  */
 class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
+	val motor = hardwareMap[motorName] as DcMotorEx
+
+	/**
+	 * The power of the motor.
+	 * This is cached to prevent setting the power to the same value.
+	 */
 	var power = 0.0
 		set(value) {
-			if (power != this.power) {
+			if (field != value) {
 				field = value
 				motor.power = power
 			}
@@ -63,30 +70,19 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	 */
 	val isOverCurrent get() = motor.isOverCurrent
 
-	/**
-	 * Sets the power differential that will be considered the same power.
-	 * @param tolerance the power tolerance to set.
-	 */
-	var powerTolerance = 0.005
-		set(value) {
-			if (value < 0) {
-				throw IllegalArgumentException("Tolerance must be greater than 0")
-			}
-			field = value
-		}
-
-	val motor = hardwareMap[motorName] as DcMotorEx
+	private var powerTolerance = 0.005
 
 	init {
 		motor.direction = DcMotorSimple.Direction.FORWARD
 	}
 
 	/**
-	 * Sets the power of the motor.
+	 * Sets the power of the motor with a tolerance.
+	 * Simply better for performance as it uses a tolerance to set the power.
 	 * @param power the power to set.
 	 */
 	fun setPowerWithTol(power: Double) {
-		if (abs(power - this.power) > powerTolerance || power == 0.0) {
+		if (abs(power - this.power) >= powerTolerance || power == 0.0) {
 			this.power = power
 		}
 	}
@@ -104,9 +100,10 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	/**
 	 * Resets the encoder for this motor.
 	 */
-	fun resetEncoder() {
+	fun resetEncoder(): HyperionMotor {
 		motor.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
 		motor.mode = DcMotor.RunMode.RUN_USING_ENCODER
+		return this
 	}
 
 	/**
@@ -116,11 +113,22 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 		motor.direction = DcMotorSimple.Direction.REVERSE
 		return this
 	}
+	/**
+	 * Sets the power differential that will be considered the same power.
+	 * @param tolerance the power tolerance to set.
+	 */
+	fun setPowerTolerance(tolerance: Double): HyperionMotor {
+		if (tolerance < 0) {
+			throw IllegalArgumentException("Tolerance must be greater than 0")
+		}
+		powerTolerance = tolerance
+		return this
+	}
 
 	/**
 	 * Stops the motor.
 	 */
 	fun stop() {
-		this.power = 0.0
+		power = 0.0
 	}
 }
