@@ -2,7 +2,6 @@ package ca.helios5009.hyperion.core
 
 import ca.helios5009.hyperion.hardware.HyperionMotor
 import com.qualcomm.robotcore.hardware.DcMotor
-import com.qualcomm.robotcore.hardware.DcMotorSimple
 import com.qualcomm.robotcore.hardware.HardwareMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
@@ -53,17 +52,11 @@ class Motors(
 	fun move(drive: Double, strafe: Double, rotate: Double) {
 		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
 		val powRatio = powerRatio.get()
-		val max = minOf(powRatio, maxPower)
-		val powerList = doubleArrayOf(
-			drive + strafe + rotate,    // The power of the front left motor
-			drive - strafe - rotate,    // The power of the front right motor
-			drive - strafe + rotate,    // The power of the back left motor
-			drive + strafe - rotate     // The power of the back right motor
-		)
-
-		motorList.forEachIndexed { index, motor ->
-			motor.setPower(powerList[index] / max)
-		}
+		val max = maxOf(powRatio, maxPower)
+		fl.setPowerWithTol((drive + strafe + rotate) / max)
+		fr.setPowerWithTol((drive - strafe - rotate) / max)
+		bl.setPowerWithTol((drive - strafe + rotate) / max)
+		br.setPowerWithTol((drive + strafe - rotate) / max)
 	}
 
 	/**
@@ -86,18 +79,12 @@ class Motors(
 	fun gamepadMove(drive: Double, strafe: Double, rotate: Double) {
 		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
 		val powRatio = powerRatio.get()
-		val max = minOf(powRatio, maxPower)
+		val max = maxOf(powRatio, maxPower)
 
-		val powerList = doubleArrayOf(
-			drive + strafe + rotate,
-			drive - strafe - rotate,
-			drive - strafe + rotate,
-			drive + strafe - rotate
-		)
-
-		motorList.forEachIndexed { index, motor ->
-			motor.power = powerList[index] / max
-		}
+		fl.power = (drive + strafe + rotate) / max
+		fr.power = (drive - strafe - rotate) / max
+		bl.power = (drive - strafe + rotate) / max
+		br.power = (drive + strafe - rotate) / max
 	}
 
 	fun stop() {

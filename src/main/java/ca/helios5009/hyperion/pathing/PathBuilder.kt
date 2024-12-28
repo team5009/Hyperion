@@ -3,7 +3,7 @@ package ca.helios5009.hyperion.pathing
 import ca.helios5009.hyperion.core.Motors
 import ca.helios5009.hyperion.core.Movement
 import ca.helios5009.hyperion.core.PIDFController
-import ca.helios5009.hyperion.hardware.Deadwheels
+//import ca.helios5009.hyperion.hardware.Deadwheels
 import ca.helios5009.hyperion.misc.Odometry
 import ca.helios5009.hyperion.hardware.Otos
 import ca.helios5009.hyperion.misc.events.EventListener

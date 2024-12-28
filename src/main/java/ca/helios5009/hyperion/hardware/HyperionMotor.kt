@@ -67,7 +67,7 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	 * Sets the power differential that will be considered the same power.
 	 * @param tolerance the power tolerance to set.
 	 */
-	var powerTolerance = 0.01
+	var powerTolerance = 0.005
 		set(value) {
 			if (value < 0) {
 				throw IllegalArgumentException("Tolerance must be greater than 0")
@@ -85,7 +85,7 @@ class HyperionMotor(hardwareMap: HardwareMap, motorName: String) {
 	 * Sets the power of the motor.
 	 * @param power the power to set.
 	 */
-	fun setPower(power: Double) {
+	fun setPowerWithTol(power: Double) {
 		if (abs(power - this.power) > powerTolerance || power == 0.0) {
 			this.power = power
 		}

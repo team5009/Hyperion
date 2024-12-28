@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.ir.backend.js.compile
 //import com.nishtahir.CargoBuildTask
 //import com.nishtahir.CargoExtension
 
-val ftcVersion = "10.1.0"
+val ftcVersion = "10.1.1"
 
 plugins {
 	id("com.android.library")
@@ -14,7 +14,7 @@ plugins {
 
 android {
 	namespace = "ca.helios5009.Hyperion"
-	compileSdk = 29
+	compileSdk = 34
 
 	defaultConfig {
 		minSdk = 24
@@ -52,11 +52,11 @@ android {
 //	}
 
 	compileOptions {
-		sourceCompatibility = JavaVersion.VERSION_1_8
-		targetCompatibility = JavaVersion.VERSION_1_8
+		sourceCompatibility = JavaVersion.VERSION_17
+		targetCompatibility = JavaVersion.VERSION_17
 	}
 	kotlinOptions {
-		jvmTarget = "1.8"
+		jvmTarget = "17"
 	}
 
 	ndkVersion = "27.1.12297006"
