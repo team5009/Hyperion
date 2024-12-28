@@ -271,15 +271,9 @@ class PathBuilder<T: Odometry>(
 		while(opMode.opModeIsActive()) {
 			movement.goto(currentPosition, true)
 			if (debug) {
-				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-				totalLoopTime += loopTimeValue
-				loopCount++
 				opMode.telemetry.addLine("Waiting for Autonomous to end")
-				opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
-				opMode.telemetry.addLine("Loop : ${loopTimeValue}ms")
-				opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 				opMode.telemetry.update()
-				loopTime?.reset()
+
 			}
 		}
 		movement.stopMovement()
@@ -304,30 +298,13 @@ class PathBuilder<T: Odometry>(
 				state = PathState.WAITING
 			}
 		}
-
-		val loopTime = if (debug) {
-			ElapsedTime()
-		} else {
-			null
-		}
-		var totalLoopTime = 0.0
-		var loopCount = 0
 		listener.call(event)
 		holdingPosition = movement.lastKnownPoint
 		val timer = ElapsedTime()
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
-			movement.goto(holdingPosition, true)
-			if (debug) {
-				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-				totalLoopTime += loopTimeValue
-				loopCount++
+				movement.goto(holdingPosition, true)
 				opMode.telemetry.addLine("Waiting for ${time}ms")
-				opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
-				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-				opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 				opMode.telemetry.update()
-				loopTime?.reset()
-			}
 		}
 		state = PathState.RUNNING
 		return this
@@ -352,13 +329,7 @@ class PathBuilder<T: Odometry>(
 				state = PathState.WAITING
 			}
 		}
-		val loopTime = if (debug) {
-			ElapsedTime()
-		} else {
-			null
-		}
-		var totalLoopTime = 0.0
-		var loopCount = 0
+
 		listener.call(event)
 		holdingPosition = movement.lastKnownPoint
 		if (message.startsWith('_')) {
@@ -367,30 +338,16 @@ class PathBuilder<T: Odometry>(
 				movement.goto(holdingPosition, true)
 
 				if (debug) {
-					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-					totalLoopTime += loopTimeValue
-					loopCount++
 					opMode.telemetry.addLine("Waiting for 1500ms")
-					opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
-					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					opMode.telemetry.update()
-					loopTime?.reset()
 				}
 			}
 		} else {
 			while(opMode.opModeIsActive() && !listener.isInQueue(message)) {
 				movement.goto(holdingPosition, true)
 				if (debug) {
-					val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-					totalLoopTime += loopTimeValue
-					loopCount++
 					opMode.telemetry.addData("Waiting for", message)
-					opMode.telemetry.addLine("Distance: ${movement.distanceFromTarget.get()}in")
-					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					opMode.telemetry.update()
-					loopTime?.reset()
 				}
 			}
 		}

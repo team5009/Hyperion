@@ -110,16 +110,9 @@ class Movement<T: Odometry>(
 				goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
 				val rotationError = rotateController.positionError // Get the rotation error
 				if (debug) {
-
 					opMode.telemetry.addData("Current Execution", "Through Path")
-
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
-
-					opMode.telemetry.addLine("--------------------")
-					opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-					opMode.telemetry.addLine("Average Loop Time: ${totalLoopTime / loopCount}ms")
 					opMode.telemetry.update()
-					loopTime?.reset()
 				}
 			} while (
 				opMode.opModeIsActive() &&
@@ -184,9 +177,7 @@ class Movement<T: Odometry>(
 		val rotate = rotateController.calculate(theta)
 		bot.move(drive, -strafe, -rotate)
 		if (debug) {
-			val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-			totalLoopTime += loopTimeValue
-			loopCount++
+			val time = calculateLoopTime()
 			opMode.telemetry.addLine(String.format("Drive: %.2f", drive))
 			opMode.telemetry.addLine(String.format("Strafe: %.2f", strafe))
 			opMode.telemetry.addLine(String.format("Rotate: %.2f", rotate))
@@ -198,6 +189,9 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Position", currentPosition.toString())
 			opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
+			opMode.telemetry.addLine("--------------------")
+			opMode.telemetry.addLine(String.format("Loop Time: %.2f ms", time.first))
+			opMode.telemetry.addLine(String.format("Average Loop Time: %.2f ms", time.second))
 		}
 	}
 
@@ -233,20 +227,9 @@ class Movement<T: Odometry>(
 				if ( driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
 					break
 				}
-				val loopTimeValue = loopTime?.milliseconds() ?: 0.0
-				totalLoopTime += loopTimeValue
-				loopCount++
+
 				opMode.telemetry.addData("Current Execution", "To End Point")
-				opMode.telemetry.addData("Position", currentPosition.toString())
-				opMode.telemetry.addData("Target Point", targetPoint.toString())
-				opMode.telemetry.addLine("Distance: ${distanceFromTarget.get()}in")
-				opMode.telemetry.addLine("--------------------")
-
-				opMode.telemetry.addLine("Loop Time: ${loopTimeValue}ms")
-				opMode.telemetry.addLine("Average Loop Time: ${loopTimeValue / loopCount}ms")
-
 				opMode.telemetry.update()
-				loopTime?.reset()
 			} else {
 				if (inDrivePosition && inStrafePosition && inRotatePosition) {
 					if (
@@ -357,6 +340,7 @@ class Movement<T: Odometry>(
 		totalLoopTime += loopTimeValue
 		loopCount++
 
+		loopTime?.reset()
 		return Pair(loopTimeValue, totalLoopTime / loopCount)
 	}
 
