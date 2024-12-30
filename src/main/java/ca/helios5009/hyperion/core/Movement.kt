@@ -66,7 +66,6 @@ class Movement<T: Odometry>(
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
-	val lastKnownPosition get() = segment.lastKnownPosition
 	private val loopTime = if (debug) {
 		ElapsedTime()
 	} else {
@@ -149,11 +148,9 @@ class Movement<T: Odometry>(
 		// Calculate the magnitude (The total distance that the robot should go to remove the stutter between points)
 		val magnitude = segment.lookForNextError(currentPosition)
 
-		val deltaX = if (endPoint) targetPosition.x - currentPosition.x else
-			(targetPosition.x - currentPosition.x) * magnitude / error
+		val deltaX = (targetPosition.x - currentPosition.x) * magnitude / error
 
-		val deltaY = if (endPoint) targetPosition.y - currentPosition.y else
-			(targetPosition.y - currentPosition.y) * magnitude / error
+		val deltaY = (targetPosition.y - currentPosition.y) * magnitude / error
 
 		// Calculate the amount of drive error that the robot should move
 		val driveError = deltaX * cos(-theta) - deltaY * sin(-theta)
