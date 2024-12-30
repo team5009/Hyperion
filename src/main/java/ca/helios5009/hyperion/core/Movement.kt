@@ -82,6 +82,7 @@ class Movement<T: Odometry>(
 	 * @see Point
 	 * @see PathBuilder
 	 */
+	@SuppressLint("DefaultLocale")
 	fun run(points: List<Point>) {
 		loopTime?.reset()
 		segment.setPath(points)
@@ -98,6 +99,7 @@ class Movement<T: Odometry>(
 				if (debug) {
 					opMode.telemetry.addData("Current Execution", "Through Path")
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
+					opMode.telemetry.addLine(String.format("Target Heading: %.2f", segment.lastKnownPosition.rot * 180 / Math.PI))
 					opMode.telemetry.update()
 				}
 			} while (
