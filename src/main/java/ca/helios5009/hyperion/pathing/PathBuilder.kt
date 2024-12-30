@@ -49,10 +49,7 @@ class PathBuilder<T: Odometry>(
 	var position get() = tracking.position
 		private set(value) {
 			tracking.position = value
-			movement.lastKnownPoint = value
-			if (value.angleSet) {
-				movement.lastKnowRotation = value.rot
-			}
+			movement.segment.lastKnownPosition = value
 		}
 
 	/**
@@ -68,7 +65,7 @@ class PathBuilder<T: Odometry>(
 	/**
 	 * The distance from the current target point.
 	 */
-	val distanceFromTarget get() = movement.distanceFromTarget.get()
+	val distanceFromTarget get() = movement.segment.distanceFromTarget.get()
 
 	/**
 	 * The max speed of the bot.
@@ -88,9 +85,7 @@ class PathBuilder<T: Odometry>(
 	private var holdingPosition = Point(0.0, 0.0).setRad(0.0)
 		set(value) {
 			field = value
-			if (value.angleSet) {
-				movement.lastKnowRotation = value.rot
-			}
+			movement.segment.lastKnownPosition = value
 		}
 
 	init {
@@ -151,7 +146,7 @@ class PathBuilder<T: Odometry>(
 			}
 		}
 
-		holdingPosition = (movement.lastKnownPoint + point)
+		holdingPosition = (movement.segment.lastKnownPosition + point)
 		bot.setPowerRatio(powerRatio)
 		listener.call(point.event)
 		movement.goToEndPoint(holdingPosition)
@@ -299,7 +294,7 @@ class PathBuilder<T: Odometry>(
 			}
 		}
 		listener.call(event)
-		holdingPosition = movement.lastKnownPoint
+		holdingPosition = movement.segment.lastKnownPosition
 		val timer = ElapsedTime()
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
 				movement.goto(holdingPosition, true)
@@ -331,7 +326,7 @@ class PathBuilder<T: Odometry>(
 		}
 
 		listener.call(event)
-		holdingPosition = movement.lastKnownPoint
+		holdingPosition = movement.segment.lastKnownPosition
 		if (message.startsWith('_')) {
 			val timer = ElapsedTime()
 			while(opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
@@ -357,7 +352,7 @@ class PathBuilder<T: Odometry>(
 
 	fun moveHoldPosition(point: Point) {
 		holdingPosition = holdingPosition + point
-		movement.lastKnownPoint = point
+		movement.segment.lastKnownPosition = holdingPosition
 	}
 
 	/**

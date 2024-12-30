@@ -49,7 +49,7 @@ class Motors(
 	 *
 	 * @see gamepadMove for gamepad controls.
 	 */
-	fun move(drive: Double, strafe: Double, rotate: Double) {
+	fun move(drive: Double, strafe: Double, rotate: Double) {   
 		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
 		val powRatio = powerRatio.get()
 		val max = maxOf(powRatio, maxPower)

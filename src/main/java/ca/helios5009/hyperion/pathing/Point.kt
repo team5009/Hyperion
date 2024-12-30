@@ -78,13 +78,17 @@ class Point(var x: Double, var y: Double, val event: String = "_") {
 	}
 
 	@SuppressLint("DefaultLocale")
-	override fun toString() = String.format("x: %.2f, y: %.2f, rot: %.2f", x, y, rot)
+	override fun toString() = String.format("x: %.2f, y: %.2f, rot: %.2f deg", x, y, rot * 180 / Math.PI)
 
 	override fun equals(other: Any?): Boolean {
 		if (other is Point) {
 			return x == other.x && y == other.y && rot == other.rot
 		}
 		return false
+	}
+
+	operator fun compareTo(point: Point): Int {
+		return if (x == point.x && y == point.y && rot == point.rot) 0 else -1
 	}
 	operator fun plus(point: Point): Point {
 		return Point(x + point.x, y + point.y, event).setRad(rot + point.rot)

@@ -7,11 +7,13 @@ import ca.helios5009.hyperion.misc.euclideanDistance
 import ca.helios5009.hyperion.misc.events.EventListener
 import ca.helios5009.hyperion.pathing.PathBuilder
 import ca.helios5009.hyperion.pathing.Point
+import ca.helios5009.hyperion.pathing.Segment
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.sign
 import kotlin.math.sin
 
 /**
@@ -47,7 +49,6 @@ class Movement<T: Odometry>(
 
 	lateinit var tracking: T
 
-	var distanceFromTarget = AtomicReference(0.0)
 	var velocity: Double = 0.0
 	var acceleration: Double = 0.0
 
@@ -57,23 +58,15 @@ class Movement<T: Odometry>(
 
 	private var finalPathPoint: Point = Point(0.0, 0.0)
 	private var currentTargetPoint: Point = Point(0.0, 0.0)
-	private var path: List<Point> = listOf()
-	private var currentPathIndex = 0;
+	val segment = Segment()
 
 	var currentPosition = Point(0.0, 0.0)
 		private set
 	private var previousPosition = Point(0.0, 0.0)
-	var lastKnowRotation = 0.0
-	var lastKnownPoint = Point(0.0, 0.0)
-		set(value) {
-			field = value
-			if (value.angleSet) {
-				lastKnowRotation = value.rot
-			}
-		}
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
+	val lastKnownPosition get() = segment.lastKnownPosition
 	private val loopTime = if (debug) {
 		ElapsedTime()
 	} else {
@@ -91,24 +84,18 @@ class Movement<T: Odometry>(
 	 * @see PathBuilder
 	 */
 	fun run(points: List<Point>) {
-		path = points // Set the path to the list of points
-		finalPathPoint = points.last() // Get the final point in the path
+		loopTime?.reset()
+		segment.setPath(points)
+		previousPosition = currentPosition // Set the previous position to the current position
+		currentPosition = tracking.position // Get the current position of the robot
+		while(segment.hasNext()) {
+			segment.setHeading()
+			val vectorTolerance = segment.calculateTolerance(currentPosition, minimumVectorTolerance)
+			listener.call(segment.current.event)
+			resetController()
 
-		// Set the final path point to the last point in the list
-		currentPathIndex = 0 // Set the current path index to 0
-		while (currentPathIndex < path.size - 1) { // Loop through the path but leave the last point
-			currentTargetPoint = points[currentPathIndex] // Set the current target point to the current point in the path
-			previousPosition = currentPosition.clone() // Set the previous position to the current position
-			currentPosition = tracking.position // Get the current position of the robot
-
-			setHeading() // Set the heading
-			val vectorTolerance = calculateTolerance() // Calculate the vector tolerance
-			listener.call(currentTargetPoint.event) // Call events
-			resetController() // Reset the controllers
-			rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
 			do {
-				goto(currentTargetPoint) // Move the robot closer to the target point and update the distance from the point
-				val rotationError = rotateController.positionError // Get the rotation error
+				goto(segment.current)
 				if (debug) {
 					opMode.telemetry.addData("Current Execution", "Through Path")
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
@@ -117,18 +104,21 @@ class Movement<T: Odometry>(
 			} while (
 				opMode.opModeIsActive() &&
 				(
-					distanceFromTarget.get() > vectorTolerance ||
-					abs(rotationError) >= rotateController.tolerances.first * 2.0
+					segment.distanceFromTarget.get() > vectorTolerance ||
+					abs(rotateController.positionError) >= rotateController.tolerances.first * 2.0
 				)
-			) // Loop until the robot is within the vector tolerance
-			lastKnowRotation = currentTargetPoint.rot
-			lastKnownPoint = currentTargetPoint
-			currentPathIndex++ // Increment the path index
+			)
+
+			segment.lastKnownPosition = segment.current
+			segment.nextPoint() // Move to the next point
 		}
+
+
 		listener.call(finalPathPoint.event) // Call the event at the final point
-		goToEndPoint() // Move the robot to the final point
+		segment.setHeading()
+		goToEndPoint(segment.last) // Move the robot to the final point
 		bot.stop()
-		path = listOf()
+		segment.clear()
 	}
 
 	/**
@@ -154,18 +144,16 @@ class Movement<T: Odometry>(
 
 		// Calculate the error between the target and the current position
 		val error = currentPosition.distanceTo(targetPosition)
-		distanceFromTarget.set(currentPosition.distanceTo(targetPosition)) // Set the distance from the target point
+		segment.distanceFromTarget.set(error) // Set the distance from the target point
 
-		// Calculate the speed factor (The speed that the robot should go to remove the stutter between points)
-		val speedFactor = if (endPoint) {
-			Pair(1.0, 1.0)
-		} else {
-			lookForNextError(currentPosition)
-		}
+		// Calculate the magnitude (The total distance that the robot should go to remove the stutter between points)
+		val magnitude = segment.lookForNextError(currentPosition)
 
-		val deltaX = (targetPosition.x - currentPosition.x) * speedFactor.first
+		val deltaX = if (endPoint) targetPosition.x - currentPosition.x else
+			(targetPosition.x - currentPosition.x) * magnitude / error
 
-		val deltaY = (targetPosition.y - currentPosition.y) * speedFactor.second
+		val deltaY = if (endPoint) targetPosition.y - currentPosition.y else
+			(targetPosition.y - currentPosition.y) * magnitude / error
 
 		// Calculate the amount of drive error that the robot should move
 		val driveError = deltaX * cos(-theta) - deltaY * sin(-theta)
@@ -181,7 +169,7 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine(String.format("Drive: %.2f", drive))
 			opMode.telemetry.addLine(String.format("Strafe: %.2f", strafe))
 			opMode.telemetry.addLine(String.format("Rotate: %.2f", rotate))
-			opMode.telemetry.addLine(String.format("Speed Factor: %.2f in x, %.2f in y", speedFactor.first, speedFactor.second))
+			opMode.telemetry.addLine(String.format("Magnitude: %.2f in", magnitude,))
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Distance: %.3f in", error))
 			opMode.telemetry.addLine(String.format("Velocity: %.2f in/s", velocity))
@@ -203,28 +191,19 @@ class Movement<T: Odometry>(
 	 * @see Point
 	 * @see PIDFController
 	 */
-	fun goToEndPoint(targetPoint: Point = finalPathPoint) {
-		currentTargetPoint = targetPoint // Set the current target point to the final point
+	fun goToEndPoint(targetPoint: Point) {
 		resetController() // Reset the controllers
 		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
-		val loopTime = if (debug) {
-			ElapsedTime()
-		} else {
-			null
-		}
-		var totalLoopTime = 0.0
-		var loopCount = 0
 
 		var inDrivePosition = false
 		var inStrafePosition = false
 		var inRotatePosition = false
-		setHeading()
 		rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
 
 		while (opMode.opModeIsActive()) {
-			goto(currentTargetPoint, true)
+			goto(targetPoint, true)
 			if (debug) {
-				if ( driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
+				if (driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
 					break
 				}
 
@@ -253,69 +232,9 @@ class Movement<T: Odometry>(
 				}
 			}
 		}
-		lastKnowRotation = currentTargetPoint.rot
-		lastKnownPoint = currentTargetPoint
+		segment.lastKnownPosition = targetPoint
 	}
 
-	/**
-	 * Look for the next error in the path. This is used to calculate the speed factor
-	 * When looking for the next error, it use's the point after the error point to control it's distance.
-	 * Best practice to set point that will act as a reference point after the error if you want to control the speed sooner or later.
-	 * @param position The current position of the robot
-	 * @return The distance to the next error
-	 *
-	 * @see Point
-	 */
-	private fun lookForNextError(position: Point): Pair<Double, Double> {
-		var distanceX = 0.0
-		var distanceY = 0.0
-		var point = position // initialize with position
-
-		for (i in currentPathIndex until path.size) { // Range
-			val nextPoint = path[i] // Get the next point in the path
-			distanceX += abs(point.x - nextPoint.x) // Add the x distance to the distance
-			distanceY += abs(point.y - nextPoint.y) // Add the y distance to the distance
-			point = nextPoint // Set the current point to the next point
-			if (point.useError) { // Check if the point uses error and if it is not the end point
-				distanceX += abs(point.x - path[i + 1].x) // Add the x distance to the distance
-				distanceY += abs(point.y - path[i + 1].y) // Add the y distance to the distance
-				break
-			}
-		}
-
-		return Pair(distanceX, distanceY)
-	}
-
-	private fun calculateTolerance(): Double {
-		return if (currentTargetPoint.useManualTorence) {
-			currentTargetPoint.tolerance // Use the manual tolerance if it is set
-		} else {
-			val pointAhead =
-				path[currentPathIndex + 1] // Get the point that is ahead of the current point
-			val distanceA = currentPosition.distanceTo(currentTargetPoint) // Calculate the distance between the current position and the target point
-			val distanceB = currentTargetPoint.distanceTo(pointAhead) // Calculate the distance between the target point and the next point
-			val distanceC = currentPosition.distanceTo(pointAhead) // Calculate the distance between the current position and the next point
-
-			val angleOfPath =
-				cosineLaw(distanceA, distanceB, distanceC) // Calculate the angle of the path
-			maxOf(
-				minimumVectorTolerance,
-				(Math.PI - angleOfPath) * minimumVectorTolerance
-			) // Calculate the vector tolerance
-		}
-	}
-
-	private fun setHeading() {
-		if (!currentTargetPoint.angleSet) {
-			currentTargetPoint.setRad(
-				lastKnowRotation
-			)
-		}
-	}
-
-	fun setPosition(point: Point) {
-		tracking.position = point
-	}
 
 	private fun calculateVelocity() {
 		val deltaTime = kinematicsTimer.seconds()
@@ -328,7 +247,6 @@ class Movement<T: Odometry>(
 		val deltaVelocity = velocity - previousVelocity
 		acceleration = deltaVelocity / deltaTime
 	}
-
 
 	/**
 	 * Calculate the loop time and the average loop time.
