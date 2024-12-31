@@ -87,10 +87,17 @@ class Movement<T: Odometry>(
 		previousPosition = currentPosition // Set the previous position to the current position
 		currentPosition = tracking.position // Get the current position of the robot
 		while(segment.hasNext()) {
+			opMode.telemetry.addData("Target point", segment.current.toString())
+			opMode.telemetry.addData("Rot Set", segment.current.angleSet)
+			opMode.telemetry.update()
+			opMode.sleep(1000)
 			segment.setHeading(segment.current)
 			val vectorTolerance = segment.calculateTolerance(currentPosition, minimumVectorTolerance)
 			listener.call(segment.current.event)
 			resetController()
+			opMode.telemetry.addData("Target point", segment.current.toString())
+			opMode.telemetry.addData("Rot Set", segment.current.angleSet)
+			opMode.telemetry.update()
 			rotateController.setTarget(segment.current.rot)
 			do {
 				goto(segment.current)
