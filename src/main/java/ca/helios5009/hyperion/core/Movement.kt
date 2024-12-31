@@ -56,7 +56,6 @@ class Movement<T: Odometry>(
 	lateinit var strafeController : PIDFController
 	lateinit var rotateController : PIDFController
 
-	private var finalPathPoint: Point = Point(0.0, 0.0)
 	private var currentTargetPoint: Point = Point(0.0, 0.0)
 	val segment = Segment()
 
@@ -115,7 +114,7 @@ class Movement<T: Odometry>(
 		}
 
 
-		listener.call(finalPathPoint.event) // Call the event at the final point
+		listener.call(segment.last.event) // Call the event at the final point
 		segment.setHeading()
 		goToEndPoint(segment.last) // Move the robot to the final point
 		bot.stop()
@@ -199,7 +198,7 @@ class Movement<T: Odometry>(
 		var inDrivePosition = false
 		var inStrafePosition = false
 		var inRotatePosition = false
-		rotateController.setTarget(currentTargetPoint.rot) // Set the target for the rotate controller
+		rotateController.setTarget(targetPoint.rot) // Set the target for the rotate controller
 
 		while (opMode.opModeIsActive()) {
 			goto(targetPoint, true)

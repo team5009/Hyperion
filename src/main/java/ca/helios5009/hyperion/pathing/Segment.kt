@@ -6,7 +6,7 @@ import kotlin.math.abs
 
 class Segment {
 	private val listOfPoints: MutableList<Point> = mutableListOf()
-	var lastKnownPosition = Point(0.0, 0.0).setRad(0.0)
+	var lastKnownPosition = Point(0.0, 0.0).setRad(0.0) // The last point written by the User
 		set(value) {
 			field = value
 			if (value.angleSet) {
