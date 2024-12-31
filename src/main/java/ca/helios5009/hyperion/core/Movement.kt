@@ -88,7 +88,7 @@ class Movement<T: Odometry>(
 		previousPosition = currentPosition // Set the previous position to the current position
 		currentPosition = tracking.position // Get the current position of the robot
 		while(segment.hasNext()) {
-			segment.setHeading()
+			segment.setHeading(segment.current)
 			val vectorTolerance = segment.calculateTolerance(currentPosition, minimumVectorTolerance)
 			listener.call(segment.current.event)
 			resetController()
@@ -112,10 +112,8 @@ class Movement<T: Odometry>(
 			segment.lastKnownPosition = segment.current
 			segment.nextPoint() // Move to the next point
 		}
-
-
 		listener.call(segment.last.event) // Call the event at the final point
-		segment.setHeading()
+		segment.setHeading(segment.last)
 		goToEndPoint(segment.last) // Move the robot to the final point
 		bot.stop()
 		segment.clear()

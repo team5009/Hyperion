@@ -128,9 +128,9 @@ class Segment {
 		}
 	}
 
-	fun setHeading() {
-		if (!current.angleSet) {
-			current.setRad(lastKnownPosition.rot)
+	fun setHeading(point: Point) {
+		if (!point.angleSet) {
+			point.setRad(lastKnownPosition.rot)
 		}
 	}
 
