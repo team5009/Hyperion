@@ -56,7 +56,6 @@ class Movement<T: Odometry>(
 	lateinit var strafeController : PIDFController
 	lateinit var rotateController : PIDFController
 
-	private var currentTargetPoint: Point = Point(0.0, 0.0)
 	val segment = Segment()
 
 	var currentPosition = Point(0.0, 0.0)
@@ -92,7 +91,7 @@ class Movement<T: Odometry>(
 			val vectorTolerance = segment.calculateTolerance(currentPosition, minimumVectorTolerance)
 			listener.call(segment.current.event)
 			resetController()
-
+			rotateController.setTarget(segment.current.rot)
 			do {
 				goto(segment.current)
 				if (debug) {
@@ -174,7 +173,8 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine(String.format("Acceleration: %.2f in/s^2", acceleration))
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Position", currentPosition.toString())
-			opMode.telemetry.addData("Target Point", currentTargetPoint.toString())
+			opMode.telemetry.addData("Target Point", targetPosition.toString())
+
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Loop Time: %.2f ms", time.first))
 			opMode.telemetry.addLine(String.format("Average Loop Time: %.2f ms", time.second))
@@ -204,7 +204,6 @@ class Movement<T: Odometry>(
 				if (driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
 					break
 				}
-
 				opMode.telemetry.addData("Current Execution", "To End Point")
 				opMode.telemetry.update()
 			} else {

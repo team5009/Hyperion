@@ -263,7 +263,9 @@ class PathBuilder<T: Odometry>(
 		var loopCount = 0
 		listener.call(event)
 		val currentPosition = movement.currentPosition
+
 		while(opMode.opModeIsActive()) {
+			movement.rotateController.setTarget(currentPosition.rot)
 			movement.goto(currentPosition, true)
 			if (debug) {
 				opMode.telemetry.addLine("Waiting for Autonomous to end")
@@ -297,9 +299,10 @@ class PathBuilder<T: Odometry>(
 		holdingPosition = movement.segment.lastKnownPosition
 		val timer = ElapsedTime()
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
-				movement.goto(holdingPosition, true)
-				opMode.telemetry.addLine("Waiting for ${time}ms")
-				opMode.telemetry.update()
+			movement.rotateController.setTarget(holdingPosition.rot)
+			movement.goto(holdingPosition, true)
+			opMode.telemetry.addLine("Waiting for ${time}ms")
+			opMode.telemetry.update()
 		}
 		state = PathState.RUNNING
 		return this
@@ -330,6 +333,7 @@ class PathBuilder<T: Odometry>(
 		if (message.startsWith('_')) {
 			val timer = ElapsedTime()
 			while(opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
+				movement.rotateController.setTarget(holdingPosition.rot)
 				movement.goto(holdingPosition, true)
 
 				if (debug) {
@@ -339,6 +343,7 @@ class PathBuilder<T: Odometry>(
 			}
 		} else {
 			while(opMode.opModeIsActive() && !listener.isInQueue(message)) {
+				movement.rotateController.setTarget(holdingPosition.rot)
 				movement.goto(holdingPosition, true)
 				if (debug) {
 					opMode.telemetry.addData("Waiting for", message)
