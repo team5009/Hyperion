@@ -16,7 +16,7 @@ class Segment {
 	val distanceFromTarget = AtomicReference(0.0)
 	private var index = 0
 		private set(value) {
-			if (value < 0 || value >= length) {
+			if (value < 0 || (length != 0 && value >= length)) {
 				throw IndexOutOfBoundsException("The current point is out of bounds")
 			}
 			field = value
