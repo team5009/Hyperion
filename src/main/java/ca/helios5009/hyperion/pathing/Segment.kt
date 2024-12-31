@@ -131,6 +131,8 @@ class Segment {
 	fun setHeading(point: Point) {
 		if (!point.angleSet) {
 			point.setRad(lastKnownPosition.rot)
+		} else {
+			point.setRad(point.rot)
 		}
 	}
 

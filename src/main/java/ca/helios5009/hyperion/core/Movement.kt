@@ -174,7 +174,7 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Position", currentPosition.toString())
 			opMode.telemetry.addData("Target Point", targetPosition.toString())
-
+			opMode.telemetry.addLine(String.format("Rot Set: ${targetPosition.angleSet}"))
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Loop Time: %.2f ms", time.first))
 			opMode.telemetry.addLine(String.format("Average Loop Time: %.2f ms", time.second))
