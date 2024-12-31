@@ -118,8 +118,13 @@ class Movement<T: Odometry>(
 			segment.lastKnownPosition = segment.current
 			segment.nextPoint() // Move to the next point
 		}
+		opMode.telemetry.addData("Target point", segment.last.toString())
+		opMode.telemetry.addData("Rot Set", segment.last.angleSet)
+		opMode.sleep(1000)
 		listener.call(segment.last.event) // Call the event at the final point
 		segment.setHeading(segment.last)
+		opMode.telemetry.addData("Target point", segment.last.toString())
+		opMode.telemetry.addData("Rot Set", segment.last.angleSet)
 		goToEndPoint(segment.last) // Move the robot to the final point
 		bot.stop()
 		segment.clear()
