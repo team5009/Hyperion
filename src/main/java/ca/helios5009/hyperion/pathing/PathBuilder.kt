@@ -9,6 +9,7 @@ import ca.helios5009.hyperion.hardware.Otos
 import ca.helios5009.hyperion.misc.events.EventListener
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.util.ElapsedTime
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * HyperionPath is a class that allows for the creation of paths for the robot to follow.
@@ -49,7 +50,7 @@ class PathBuilder<T: Odometry>(
 	var position get() = tracking.position
 		private set(value) {
 			tracking.position = value
-			movement.segment.lastKnownPosition = value
+			movement.segment.setLastKnownPosition(value)
 		}
 
 	/**
@@ -82,11 +83,7 @@ class PathBuilder<T: Odometry>(
 	private val movement = Movement<T>(opMode, listener, bot, debug)
 	var state = PathState.ENDED
 		private set
-	private var holdingPosition = Point(0.0, 0.0).setRad(0.0)
-		set(value) {
-			field = value
-			movement.segment.lastKnownPosition = value
-		}
+	private val holdingPosition = AtomicReference(Point(0.0, 0.0).setRad(0.0))
 
 	init {
 		movement.tracking = tracking
@@ -97,15 +94,13 @@ class PathBuilder<T: Odometry>(
 	 * @param origin The origin point of the path.
 	 */
 	fun start(origin: Point): PathBuilder<T> {
-		if (state == PathState.RUNNING) {
-			throw IllegalStateException("Path is already running")
-		}
-		if(!origin.angleSet) {
-			throw IllegalArgumentException("Origin point must have an angle set")
-		}
+		if (state == PathState.RUNNING) throw IllegalStateException("Path is already running")
+		if(!origin.angleSet) throw IllegalArgumentException("Origin point must have an angle set")
+
 		state = PathState.RUNNING
-		listener.call(origin.event)
 		position = origin
+		movement.initStart(origin)
+		listener.call(origin.event)
 		return this
 	}
 
@@ -116,15 +111,9 @@ class PathBuilder<T: Odometry>(
 	@Deprecated("Only use Segments or relativeLine")
 	fun line(point: Point): PathBuilder<T> {
 		when (state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting")
-			}
-			PathState.RUNNING -> {
-				movement.run(listOf(point))
-			}
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting")
+			PathState.RUNNING -> movement.run(listOf(point))
 		}
 		return this
 	}
@@ -135,21 +124,15 @@ class PathBuilder<T: Odometry>(
 	 */
 	fun relativeLine(point: Point, powerRatio: Double = 1.0): PathBuilder<T> {
 		when (state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting")
-			}
-			PathState.RUNNING -> {
-
-			}
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting")
+			else -> {}
 		}
-
-		holdingPosition = (movement.segment.lastKnownPosition + point)
+		setHoldingPosition(movement.segment.lastKnownPosition)
+		moveHoldPosition(point)
 		bot.setPowerRatio(powerRatio)
 		listener.call(point.event)
-		movement.goToEndPoint(holdingPosition)
+		movement.goToEndPoint(holdingPosition.get())
 		bot.setPowerRatio(1.0)
 
 		return this
@@ -169,19 +152,13 @@ class PathBuilder<T: Odometry>(
 	 * @param points The list of points to move to.
 	 */
 	fun segment(vararg points: Point): PathBuilder<T> {
-		if (points.isEmpty()) {
-			throw IllegalArgumentException("No points to move to")
-		}
+		if (points.isEmpty()) throw IllegalArgumentException("No points to move to")
+
 		when(state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting")
-			}
-			PathState.RUNNING -> {
-				movement.run(points.asList())
-			}
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting")
+			PathState.RUNNING -> movement.run(points.asList())
+
 		}
 		return this
 	}
@@ -200,19 +177,12 @@ class PathBuilder<T: Odometry>(
 	 * @param points The list of points to move to.
 	 */
 	fun segment(points: List<Point>): PathBuilder<T> {
-		if (points.isEmpty()) {
-			throw IllegalArgumentException("No points to move to")
-		}
+		if (points.isEmpty()) throw IllegalArgumentException("No points to move to")
+
 		when(state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting")
-			}
-			PathState.RUNNING -> {
-				movement.run(points)
-			}
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting")
+			PathState.RUNNING -> movement.run(points)
 		}
 		return this
 	}
@@ -222,19 +192,13 @@ class PathBuilder<T: Odometry>(
 	 * @param event The event to call when the path is done.
 	 */
 	fun endWithoutHold(event: String = "_") {
-		when(state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting")
-			}
-			PathState.RUNNING -> {
-				state = PathState.ENDED
-				listener.call(event)
-				movement.stopMovement()
-			}
+		state = when(state) {
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting")
+			PathState.RUNNING -> PathState.ENDED
 		}
+		listener.call(event)
+		movement.stopMovement()
 	}
 
 	/**
@@ -243,34 +207,21 @@ class PathBuilder<T: Odometry>(
 	 * @param event The event to call when the path is done.
 	 */
 	fun end(event: String = "_") {
-		when (state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started / Path has already ended")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting")
-			}
-			PathState.RUNNING -> {
-				state = PathState.ENDED
-			}
+		state = when (state) {
+			PathState.ENDED -> throw IllegalStateException("Path has not started / Path has already ended")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting")
+			PathState.RUNNING -> PathState.ENDED
 		}
-		val loopTime = if (debug) {
-			ElapsedTime()
-		} else {
-			null
-		}
-		var totalLoopTime = 0.0
-		var loopCount = 0
+
 		listener.call(event)
 		val currentPosition = movement.currentPosition
+		movement.rotateController.setTarget(currentPosition.rot)
 
 		while(opMode.opModeIsActive()) {
-			movement.rotateController.setTarget(currentPosition.rot)
 			movement.goto(currentPosition, true)
 			if (debug) {
 				opMode.telemetry.addLine("Waiting for Autonomous to end")
 				opMode.telemetry.update()
-
 			}
 		}
 		movement.stopMovement()
@@ -284,25 +235,23 @@ class PathBuilder<T: Odometry>(
 	 * @param event The event to call when the time is up.
 	 */
 	fun wait(time: Double, event: String = "_"): PathBuilder<T> {
-		when(state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting already")
-			}
-			PathState.RUNNING -> {
-				state = PathState.WAITING
-			}
+		state = when(state) {
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting already")
+			PathState.RUNNING -> PathState.WAITING
 		}
 		listener.call(event)
-		holdingPosition = movement.segment.lastKnownPosition
+		setHoldingPosition(movement.segment.lastKnownPosition)
 		val timer = ElapsedTime()
+
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
-			movement.rotateController.setTarget(holdingPosition.rot)
-			movement.goto(holdingPosition, true)
-			opMode.telemetry.addLine("Waiting for ${time}ms")
-			opMode.telemetry.update()
+			val tempHold = holdingPosition.get()
+			movement.rotateController.setTarget(tempHold.rot)
+			movement.goto(tempHold, true)
+			if (debug) {
+				opMode.telemetry.addLine("Waiting for ${time}ms")
+				opMode.telemetry.update()
+			}
 		}
 		state = PathState.RUNNING
 		return this
@@ -316,39 +265,32 @@ class PathBuilder<T: Odometry>(
 	 * @param event The event to call when the message is called.
 	 */
 	fun wait(message: String, event: String = "_"): PathBuilder<T> {
-		when(state) {
-			PathState.ENDED -> {
-				throw IllegalStateException("Path has not started")
-			}
-			PathState.WAITING -> {
-				throw IllegalStateException("Path is waiting already")
-			}
-			PathState.RUNNING -> {
-				state = PathState.WAITING
-			}
+		state = when(state) {
+			PathState.ENDED -> throw IllegalStateException("Path has not started")
+			PathState.WAITING -> throw IllegalStateException("Path is waiting already")
+			PathState.RUNNING -> PathState.WAITING
 		}
 
 		listener.call(event)
-		holdingPosition = movement.segment.lastKnownPosition
-		if (message.startsWith('_')) {
-			val timer = ElapsedTime()
-			while(opMode.opModeIsActive() && timer.milliseconds() < 1500.0) {
-				movement.rotateController.setTarget(holdingPosition.rot)
-				movement.goto(holdingPosition, true)
+		setHoldingPosition(movement.segment.lastKnownPosition)
+		val isTemp = message.startsWith('_')
+		val timer = ElapsedTime()
 
-				if (debug) {
-					opMode.telemetry.addLine("Waiting for 1500ms")
-					opMode.telemetry.update()
-				}
+		while (opMode.opModeIsActive()) {
+			val tempHold = holdingPosition.get()
+			movement.rotateController.setTarget(tempHold.rot)
+			movement.goto(tempHold, true)
+
+			if (isTemp) {
+				if (timer.milliseconds() > 1500.0) break
+				else if (listener.isInQueue(message)) break
 			}
-		} else {
-			while(opMode.opModeIsActive() && !listener.isInQueue(message)) {
-				movement.rotateController.setTarget(holdingPosition.rot)
-				movement.goto(holdingPosition, true)
-				if (debug) {
-					opMode.telemetry.addData("Waiting for", message)
-					opMode.telemetry.update()
-				}
+
+			if (debug) {
+				if (isTemp) opMode.telemetry.addLine("Waiting for 1.5s")
+				else opMode.telemetry.addLine("Waiting for $message")
+
+				opMode.telemetry.update()
 			}
 		}
 		state = PathState.RUNNING
@@ -356,8 +298,19 @@ class PathBuilder<T: Odometry>(
 	}
 
 	fun moveHoldPosition(point: Point) {
-		holdingPosition = holdingPosition + point
-		movement.segment.lastKnownPosition = holdingPosition
+		val tempPosition = holdingPosition.get()
+		tempPosition.x += point.x
+		tempPosition.y += point.y
+		tempPosition.setRad(tempPosition.rot + point.rot)
+		movement.segment.setLastKnownPosition(tempPosition)
+	}
+
+	fun setHoldingPosition(point: Point) {
+		val tempPosition = holdingPosition.get()
+		tempPosition.x = point.x
+		tempPosition.y = point.y
+		tempPosition.setRad(point.rot)
+		movement.segment.setLastKnownPosition(tempPosition)
 	}
 
 	/**
@@ -374,8 +327,7 @@ class PathBuilder<T: Odometry>(
 		movement.minimumVectorTolerance = tolerance
 		return this
 	}
-
-
+	
 	/**
 	 * Set constants for the Drive PID controller
 	 * @see PIDFController

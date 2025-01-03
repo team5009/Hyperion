@@ -6,18 +6,12 @@ import kotlin.math.abs
 
 class Segment {
 	private val listOfPoints: MutableList<Point> = mutableListOf()
-	var lastKnownPosition = Point(0.0, 0.0).setRad(0.0) // The last point written by the User
-		set(value) {
-			field = value
-			if (value.angleSet) {
-				field.setRad(value.rot)
-			}
-		}
+	val lastKnownPosition = Point(0.0, 0.0).setRad(0.0) // The last point written by the User
 	val distanceFromTarget = AtomicReference(0.0)
 	private var index = 0
 		private set(value) {
 			if (value < 0 || (length != 0 && value >= length)) {
-				throw IndexOutOfBoundsException("The current point is out of bounds")
+				throw IndexOutOfBoundsException("The current point is out of the segment")
 			}
 			field = value
 		}
@@ -145,6 +139,12 @@ class Segment {
 		lastKnownPosition.x = x
 		lastKnownPosition.y = y
 		lastKnownPosition.setRad(rot)
+	}
+
+	fun setLastKnownPosition(point: Point) {
+		lastKnownPosition.x = point.x
+		lastKnownPosition.y = point.y
+		lastKnownPosition.setRad(point.rot)
 	}
 
 	fun setLastKnownRotation(rad: Double) {

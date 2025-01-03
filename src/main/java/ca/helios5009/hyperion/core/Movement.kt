@@ -38,6 +38,7 @@ import kotlin.math.sin
  * @see PathBuilder
  * @see PIDFController
  */
+@SuppressLint("DefaultLocale")
 class Movement<T: Odometry>(
 	private val opMode: LinearOpMode,
 	private val listener: EventListener,
@@ -47,84 +48,64 @@ class Movement<T: Odometry>(
 	var minimumVectorTolerance: Double = 2.0
 	var timeout = 150.0
 
-	lateinit var tracking: T
-
 	var velocity: Double = 0.0
 	var acceleration: Double = 0.0
 
+	lateinit var tracking: T
 	lateinit var driveController : PIDFController
 	lateinit var strafeController : PIDFController
 	lateinit var rotateController : PIDFController
 
 	val segment = Segment()
 
-	var currentPosition = Point(0.0, 0.0)
-		private set
-	private var previousPosition = Point(0.0, 0.0)
+	val currentPosition = Point(0.0, 0.0).setRad(0.0)
+	private val previousPosition = Point(0.0, 0.0).setRad(0.0)
 
 	private val kinematicsTimer: ElapsedTime = ElapsedTime() // Timer for calculating the velocity and acceleration
 	private var previousVelocity: Double = 0.0
-	private val loopTime = if (debug) {
-		ElapsedTime()
-	} else {
-		null
-	}
+	private val loopTime = if (debug) ElapsedTime() else null
+
 	private var totalLoopTime = 0.0
 	private var loopCount = 0
 
 	/**
-	 * Run the path that is given to the robot.
-	 * This method will move the robot to the points that are given in the path.
+	 *
 	 * @param points The list of points that the robot should move to
 	 *
 	 * @see Point
-	 * @see PathBuilder
+	 * @see PIDFController
 	 */
-	@SuppressLint("DefaultLocale")
 	fun run(points: List<Point>) {
 		loopTime?.reset()
 		segment.setPath(points)
-		previousPosition = currentPosition // Set the previous position to the current position
-		currentPosition = tracking.position // Get the current position of the robot
+		previousPosition.set(currentPosition) // Set the previous position to the current position
+		currentPosition.set(tracking.position) // Get the current position of the robot
 		while(segment.hasNext()) {
-			opMode.telemetry.addData("Target point", segment.current.toString())
-			opMode.telemetry.addData("Rot Set", segment.current.angleSet)
-			opMode.telemetry.update()
-			opMode.sleep(1000)
 			segment.setHeading(segment.current)
 			val vectorTolerance = segment.calculateTolerance(currentPosition, minimumVectorTolerance)
 			listener.call(segment.current.event)
 			resetController()
-			opMode.telemetry.addData("Target point", segment.current.toString())
-			opMode.telemetry.addData("Rot Set", segment.current.angleSet)
-			opMode.telemetry.update()
 			rotateController.setTarget(segment.current.rot)
 			do {
 				goto(segment.current)
 				if (debug) {
 					opMode.telemetry.addData("Current Execution", "Through Path")
 					opMode.telemetry.addLine("Vector Tolerance: ${vectorTolerance}in")
-					opMode.telemetry.addLine(String.format("Target Heading: %.2f", segment.lastKnownPosition.rot * 180 / Math.PI))
 					opMode.telemetry.update()
 				}
-			} while (
-				opMode.opModeIsActive() &&
+			} while (opMode.opModeIsActive() &&
 				(
 					segment.distanceFromTarget.get() > vectorTolerance ||
 					abs(rotateController.positionError) >= rotateController.tolerances.first * 2.0
 				)
 			)
-
-			segment.lastKnownPosition = segment.current
+			segment.setLastKnownPosition(segment.current) // Set the last known position to the current position
 			segment.nextPoint() // Move to the next point
 		}
-		opMode.telemetry.addData("Target point", segment.last.toString())
-		opMode.telemetry.addData("Rot Set", segment.last.angleSet)
-		opMode.sleep(1000)
 		listener.call(segment.last.event) // Call the event at the final point
 		segment.setHeading(segment.last)
-		opMode.telemetry.addData("Target point", segment.last.toString())
-		opMode.telemetry.addData("Rot Set", segment.last.angleSet)
+		resetController() // Reset the controllers
+		rotateController.setTarget(segment.last.rot) // Set the target for the rotate controller
 		goToEndPoint(segment.last) // Move the robot to the final point
 		bot.stop()
 		segment.clear()
@@ -140,19 +121,19 @@ class Movement<T: Odometry>(
 	 * @see Point
 	 * @see PIDFController
 	 */
-	@SuppressLint("DefaultLocale")
+
 	fun goto(targetPosition: Point, endPoint: Boolean = false) {
-		currentPosition = tracking.position // Get the current position of the robot // Set the path index to the current point in the path
+		currentPosition.set(tracking.position) // Get the current position of the robot // Set the path index to the current point in the path
 		calculateVelocity() // Calculate the velocity of the robot
 		calculateAcceleration() // Calculate the acceleration of the robot
 		kinematicsTimer.reset() // Reset the timer to calculate the velocity
-		previousPosition = currentPosition.clone() // Set the previous position to the current position
+		previousPosition.set(currentPosition) // Set the previous position to the current position
 		previousVelocity = velocity // Set the previous velocity to the current velocity
 
 		val theta = currentPosition.rot// Get the current angle of the robot
 
-		// Calculate the error between the target and the current position
-		val error = currentPosition.distanceTo(targetPosition)
+
+		val error = currentPosition.distanceTo(targetPosition) // Calculate the distance between the target and the current position
 		segment.distanceFromTarget.set(error) // Set the distance from the target point
 
 		// Calculate the magnitude (The total distance that the robot should go to remove the stutter between points)
@@ -162,7 +143,7 @@ class Movement<T: Odometry>(
 				(targetPosition.x - currentPosition.x) * magnitude / error
 
 		val deltaY = if (endPoint) (targetPosition.y - currentPosition.y) else
-			(targetPosition.y - currentPosition.y) * magnitude / error
+				(targetPosition.y - currentPosition.y) * magnitude / error
 
 		// Calculate the amount of drive error that the robot should move
 		val driveError = deltaX * cos(-theta) - deltaY * sin(-theta)
@@ -178,7 +159,7 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine(String.format("Drive: %.2f", drive))
 			opMode.telemetry.addLine(String.format("Strafe: %.2f", strafe))
 			opMode.telemetry.addLine(String.format("Rotate: %.2f", rotate))
-			opMode.telemetry.addLine(String.format("Magnitude: %.2f in", magnitude,))
+			opMode.telemetry.addLine(String.format("Magnitude: %.2f in", magnitude))
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Distance: %.3f in", error))
 			opMode.telemetry.addLine(String.format("Velocity: %.2f in/s", velocity))
@@ -186,7 +167,7 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Position", currentPosition.toString())
 			opMode.telemetry.addData("Target Point", targetPosition.toString())
-			opMode.telemetry.addLine(String.format("Rot Set: ${targetPosition.angleSet}"))
+			opMode.telemetry.addLine(String.format("Target Heading: %.2f", segment.lastKnownPosition.rot * 180 / Math.PI))
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Loop Time: %.2f ms", time.first))
 			opMode.telemetry.addLine(String.format("Average Loop Time: %.2f ms", time.second))
@@ -202,48 +183,27 @@ class Movement<T: Odometry>(
 	 * @see PIDFController
 	 */
 	fun goToEndPoint(targetPoint: Point) {
-		resetController() // Reset the controllers
 		val timeoutTimer = ElapsedTime() // Create a timer to timeout if the robot is stuck
-
-		var inDrivePosition = false
-		var inStrafePosition = false
-		var inRotatePosition = false
-		rotateController.setTarget(targetPoint.rot) // Set the target for the rotate controller
+		var inDrivePosition = false; var inStrafePosition = false; var inRotatePosition = false
 
 		while (opMode.opModeIsActive()) {
 			goto(targetPoint, true)
 			if (debug) {
-				if (driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) {
-					break
-				}
+				if (driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget ) break
 				opMode.telemetry.addData("Current Execution", "To End Point")
 				opMode.telemetry.update()
 			} else {
-				if (inDrivePosition && inStrafePosition && inRotatePosition) {
-					if (
-						timeoutTimer.milliseconds() > timeout
-						|| (driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget)
-					) {
-						break
-					}
-				} else {
-					timeoutTimer.reset()
-				}
+				if (inDrivePosition && inStrafePosition && inRotatePosition)
+					if ((driveController.isAtTarget && strafeController.isAtTarget && rotateController.isAtTarget) ||
+						timeoutTimer.milliseconds() > timeout) break else timeoutTimer.reset()
 
-				if (driveController.isAtTarget && !inDrivePosition) {
-					inDrivePosition = true
-				}
-				if (strafeController.isAtTarget && !inStrafePosition) {
-					inStrafePosition = true
-				}
-				if (rotateController.isAtTarget && !inRotatePosition) {
-					inRotatePosition = true
-				}
+				if (driveController.isAtTarget && !inDrivePosition) inDrivePosition = true
+				if (strafeController.isAtTarget && !inStrafePosition) inStrafePosition = true
+				if (rotateController.isAtTarget && !inRotatePosition) inRotatePosition = true
 			}
 		}
-		segment.lastKnownPosition = targetPoint
+		segment.setLastKnownPosition(targetPoint)
 	}
-
 
 	private fun calculateVelocity() {
 		val deltaTime = kinematicsTimer.seconds()
@@ -269,6 +229,14 @@ class Movement<T: Odometry>(
 
 		loopTime?.reset()
 		return Pair(loopTimeValue, totalLoopTime / loopCount)
+	}
+
+	fun initStart(start: Point) {
+		currentPosition.set(start)
+		previousPosition.set(start)
+		resetController()
+		loopTime?.reset()
+		stopMovement()
 	}
 
 	/**

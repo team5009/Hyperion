@@ -10,7 +10,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 class Otos(
 	hardwareMap: HardwareMap,
 	name: String,
-	offset: Point = Point(0.0, 0.0)
+	offset: Point = Point(0.0, 0.0).setRad(0.0)
 ): Odometry {
 	val otos = hardwareMap.get(name) as SparkFunOTOS
 
@@ -43,20 +43,28 @@ class Otos(
 		set(value) { otos.position = SparkFunOTOS.Pose2D(value.x, value.y, value.rot) }
 
 	init {
-		otos.initialize()
-		otos.linearUnit = DistanceUnit.INCH
-		otos.angularUnit = AngleUnit.RADIANS
+		initialize()
+		linearUnit = DistanceUnit.INCH
+		angularUnit = AngleUnit.RADIANS
 
-		otos.offset = SparkFunOTOS.Pose2D(offset.x, offset.y, offset.rot)
-		otos.linearScalar = 1.0
-		otos.angularScalar = 1.0
+		this.offset = offset
+		linearScalar = 1.0
+		angularScalar = 1.0
 
-		otos.calibrateImu()
-		otos.resetTracking()
+		calibrateImu()
+		resetTracking()
 	}
 
 	fun calibrateImu() {
 		otos.calibrateImu()
+	}
+
+	fun resetTracking() {
+		otos.resetTracking()
+	}
+
+	fun initialize() {
+		otos.initialize()
 	}
 
 

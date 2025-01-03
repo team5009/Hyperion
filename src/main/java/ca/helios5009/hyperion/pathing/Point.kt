@@ -123,11 +123,29 @@ class Point(var x: Double, var y: Double, val event: String = "_") {
 		rot /= point.rot
 	}
 
+	fun set(point: Point): Point {
+		x = point.x
+		y = point.y
+		rot = point.rot
+		return this
+	}
+
+	fun set(x: Double, y: Double, rot: Double): Point {
+		this.x = x
+		this.y = y
+		this.rot = rot
+		return this
+	}
+
+	fun set(x: Double, y: Double): Point {
+		this.x = x
+		this.y = y
+		return this
+	}
+
 	fun distanceTo(point: Point): Double {
 		return sqrt((point.x - x).pow(2.0) + (point.y - y).pow(2.0))
 	}
 
 	override fun hashCode() = Objects.hash(x, y, rot)
-
-
 }

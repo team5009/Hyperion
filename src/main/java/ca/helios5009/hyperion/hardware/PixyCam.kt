@@ -40,10 +40,10 @@ class PixyCam(deviceClient: I2cDeviceSynch, deviceClientIsOwned: Boolean): I2cDe
 	}
 
 	enum class PixyRequestPackets(
-		private val requestType: Int,
-		private val request_length: Int,
-		private val response_type: Int,
-		private val response_length: Int,
+		val requestType: Int,
+		val request_length: Int,
+		val response_type: Int,
+		val response_length: Int,
 		) {
 		VERSION(	14, 0, 15, 16),
 		RESOLUTION(12, 1 ,13, 2),
@@ -60,19 +60,6 @@ class PixyCam(deviceClient: I2cDeviceSynch, deviceClientIsOwned: Boolean): I2cDe
 		VECTOR(56, 1, 1, 4),
 		REVERSE_VECTOR(	62, 0, 1, 4),
 		RGB(112, 5, 1, 4);
-
-		fun getRequestType(): Int {
-			return requestType
-		}
-		fun getRequestLength(): Int {
-			return request_length
-		}
-		fun getResponseType(): Int {
-			return response_type
-		}
-		fun getResponseLength(): Int {
-			return response_length
-		}
 	}
 
 	private fun ReadEntireWindow(readWindow: I2cDeviceSynch.ReadWindow): ByteArray? {
