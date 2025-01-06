@@ -38,9 +38,16 @@ class Otos(
 
 	val velocity get() = Point(otos.velocity.x, otos.velocity.y)
 
-	override var position: Point
-		get() = Point(otos.position.x, otos.position.y).setRad(otos.position.h)
-		set(value) { otos.position = SparkFunOTOS.Pose2D(value.x, value.y, value.rot) }
+	override var position: Point = Point(0.0, 0.0).setRad(0.0)
+		get() = run {
+			val position = otos.position
+			field.set(position.x, position.y, position.h)
+			field
+		}
+		set(value) {
+			otos.position = SparkFunOTOS.Pose2D(value.x, value.y, value.rot)
+			field = value
+		}
 
 	init {
 		initialize()
