@@ -81,7 +81,7 @@ class Movement<T: Odometry>(
 		previousPosition.set(currentPosition) // Set the previous position to the current position
 		currentPosition.set(tracking.position) // Get the current position of the robot
 		while(segment.hasNext()) {
-			segment.setHeading(segment.current)
+//			segment.setHeading(segment.current)
 			val vectorTolerance = segment.calculateTolerance(currentPosition, minimumVectorTolerance)
 			listener.call(segment.current.event)
 			resetController()
@@ -102,8 +102,9 @@ class Movement<T: Odometry>(
 			segment.setLastKnownPosition(segment.current) // Set the last known position to the current position
 			segment.nextPoint() // Move to the next point
 		}
+
 		listener.call(segment.last.event) // Call the event at the final point
-		segment.setHeading(segment.last)
+//		segment.setHeading(segment.last)
 		resetController() // Reset the controllers
 		rotateController.setTarget(segment.last.rot) // Set the target for the rotate controller
 		goToEndPoint(segment.last) // Move the robot to the final point
@@ -167,7 +168,7 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Position", currentPosition.toString())
 			opMode.telemetry.addData("Target Point", targetPosition.toString())
-			opMode.telemetry.addLine(String.format("Target Heading: %.2f", segment.lastKnownPosition.rot * 180 / Math.PI))
+			opMode.telemetry.addLine(String.format("Last Set Position: %.2f", segment.lastKnownPosition.toString()))
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Loop Time: %.2f ms", time.first))
 			opMode.telemetry.addLine(String.format("Average Loop Time: %.2f ms", time.second))
@@ -234,6 +235,7 @@ class Movement<T: Odometry>(
 	fun initStart(start: Point) {
 		currentPosition.set(start)
 		previousPosition.set(start)
+		segment.setLastKnownPosition(start)
 		resetController()
 		loopTime?.reset()
 		stopMovement()

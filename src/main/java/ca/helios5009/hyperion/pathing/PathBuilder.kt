@@ -98,7 +98,6 @@ class PathBuilder<T: Odometry>(
 		if(!origin.angleSet) throw IllegalArgumentException("Origin point must have an angle set")
 
 		state = PathState.RUNNING
-		position = origin
 		movement.initStart(origin)
 		listener.call(origin.event)
 		return this
@@ -214,11 +213,12 @@ class PathBuilder<T: Odometry>(
 		}
 
 		listener.call(event)
-		val currentPosition = movement.currentPosition
-		movement.rotateController.setTarget(currentPosition.rot)
+		setHoldingPosition(movement.currentPosition)
 
 		while(opMode.opModeIsActive()) {
-			movement.goto(currentPosition, true)
+			val tempHold = holdingPosition.get()
+			movement.rotateController.setTarget(tempHold.rot)
+			movement.goto(tempHold, true)
 			if (debug) {
 				opMode.telemetry.addLine("Waiting for Autonomous to end")
 				opMode.telemetry.update()
