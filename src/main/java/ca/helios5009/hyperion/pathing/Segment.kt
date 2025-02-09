@@ -50,7 +50,7 @@ class Segment {
 		index = 0
 	}
 
-	fun hasNext() = index + 1 < length - 1
+	fun hasNext() = index + 1 <= length - 1
 
 	fun hasPrevious() = index - 1 >= 0
 

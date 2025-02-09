@@ -63,7 +63,7 @@ class Point(var x: Double, var y: Double, val event: String = "_") {
 	 * @return The point
 	 */
 	fun setDeg(rot: Double): Point {
-		this.rot = rot * Math.PI / 180
+		this.rot = rot * Math.PI / 180.0
 		angleSet = true
 		return this
 	}
