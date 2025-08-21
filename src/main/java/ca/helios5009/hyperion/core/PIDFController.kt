@@ -1,5 +1,6 @@
 package ca.helios5009.hyperion.core
 
+import org.firstinspires.ftc.robotcore.external.Telemetry
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -117,15 +118,19 @@ class PIDFController(
 		return directCalculate(targetPoint - measuredValue) + kF * targetPoint;
 	}
 
-	fun directCalculate(error: Double): Double {
+	fun directCalculate(error: Double, t:Telemetry? = null): Double {
+
 		prevPositionError = positionError;
-		val currentTime = System.nanoTime() / 1e9;
+		val currentTime : Double = (System.nanoTime() / 1e9).toDouble();
 		if (lastTime.equals(0.0)) lastTime = currentTime;
 
 		period = currentTime - lastTime;
 		lastTime = currentTime;
 		positionError = if (circular) {angleWrap(error)} else {error};
-
+		if (t != null){
+			t.addData("break point 1", positionError)
+			t.addData("break point 2", lastTime)
+		}
 		velocityError = if (abs(period) > 1e-6) {
 			(positionError - prevPositionError) / period;
 		} else {
@@ -137,6 +142,10 @@ class PIDFController(
 			minIntegral
 		} else {
 			min(maxIntegral, totalError)
+		}
+		if (t != null){
+			t.addData("break point 3", totalError)
+			t.addData("break point 4", error)
 		}
 		return kP * positionError + kI * totalError + kD * velocityError
 	}

@@ -168,7 +168,7 @@ class Movement<T: Odometry>(
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addData("Position", currentPosition.toString())
 			opMode.telemetry.addData("Target Point", targetPosition.toString())
-			opMode.telemetry.addLine(String.format("Last Set Position: %.2f", segment.lastKnownPosition.toString()))
+			opMode.telemetry.addData("Last Known Set:", segment.lastKnownPosition.toString())
 			opMode.telemetry.addLine("--------------------")
 			opMode.telemetry.addLine(String.format("Loop Time: %.2f ms", time.first))
 			opMode.telemetry.addLine(String.format("Average Loop Time: %.2f ms", time.second))
@@ -235,6 +235,7 @@ class Movement<T: Odometry>(
 	fun initStart(start: Point) {
 		currentPosition.set(start)
 		previousPosition.set(start)
+		tracking.position = start
 		segment.setLastKnownPosition(start)
 		resetController()
 		loopTime?.reset()
