@@ -153,7 +153,7 @@ class Movement<T: Odometry>(
 
 		val drive  = driveController.directCalculate(driveError)
 		val strafe = strafeController.directCalculate(strafeError)
-		val rotate = rotateController.calculate(theta)
+		val rotate = rotateController.directCalculate(targetPosition.rot - theta)
 		bot.move(drive, -strafe, -rotate)
 		if (debug) {
 			val time = calculateLoopTime()
@@ -247,7 +247,7 @@ class Movement<T: Odometry>(
 	 *
 	 * @see PIDFController
 	 */
-	fun resetController() {
+	private fun resetController() {
 		driveController.reset()
 		strafeController.reset()
 		rotateController.reset()

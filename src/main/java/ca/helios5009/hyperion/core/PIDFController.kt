@@ -114,7 +114,7 @@ class PIDFController(
 		if (!measuredValue.equals(pv)) {
 			measuredValue = pv;
 		}
-		return directCalculate(targetPoint - measuredValue);
+		return directCalculate(targetPoint - measuredValue) + kF * targetPoint;
 	}
 
 	fun directCalculate(error: Double): Double {

@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.ir.backend.js.compile
 //import com.nishtahir.CargoBuildTask
 //import com.nishtahir.CargoExtension
 
-val ftcVersion = "10.1.1"
+val ftcVersion = "10.3.0"
 
 plugins {
 	id("com.android.library")
@@ -69,8 +69,8 @@ dependencies {
 	compileOnly("org.firstinspires.ftc:Vision:$ftcVersion")
 
 	implementation("androidx.core:core-ktx:1.5.0")
-	implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.6.10"))
-	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+	implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.22"))
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
 //	api(fileTree(mapOf("dir" to "libs", "include" to "*.jar")))
 

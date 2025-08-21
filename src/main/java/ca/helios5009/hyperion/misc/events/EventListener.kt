@@ -1,8 +1,11 @@
 package ca.helios5009.hyperion.misc.events
 
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * EventListener class
@@ -14,8 +17,8 @@ import kotlinx.coroutines.launch
  * @property listeners The listeners to be called when an event is triggered
  */
 class EventListener {
-	private val queue = mutableListOf<String>()
-	private val listeners = hashMapOf<String, MutableList<suspend () -> String?>>()
+	private val queue = AtomicReference(mutableListOf<String>())
+	private val listeners = AtomicReference(hashMapOf<String, MutableList<suspend () -> String?>>())
 
 	/**
 	 * Add a listener to an event to be called when the event is triggered
@@ -29,12 +32,15 @@ class EventListener {
 		if (event.startsWith("_")) {
 			return
 		}
-		synchronized(listeners) {
-			if (listeners[event] == null) {
-				listeners[event] = mutableListOf()
-			}
-			listeners[event]!!.add(listener)
+		val listeners = this.listeners.get()
+		if (listeners[event] == null) {
+			listeners[event] = mutableListOf()
 		}
+		listeners[event]!!.add(listener)
+	}
+
+	fun handleList(callback: (Int, Int) -> Unit) {
+		callback(1, 2)
 	}
 
 	/**
@@ -47,29 +53,28 @@ class EventListener {
 	 *
 	 * @param event The event to trigger
 	 */
+	@OptIn(DelicateCoroutinesApi::class)
 	fun call(event: String) {
 		if (event.startsWith("_") || event.isBlank()) {
 			return
 		}
+		val queue = this.queue.get()
+		queue.add(event)
+		var eventRemovedFromQueue = false
 
-		synchronized(queue) {
-			queue.add(event)
-			var eventRemovedFromQueue = false
-			val listeners = listeners[event] ?: return
-			listeners.forEach { listener ->
-				if (!eventRemovedFromQueue) {
-					eventRemovedFromQueue = queue.remove(event)
-				}
-				CoroutineScope(Dispatchers.Default).launch {
-					val result = listener()
-					if (result != null) {
-						call(result)
-					}
-					return@launch
-				}
+		val listenersList = this.listeners.get()
+		val listeners = listenersList[event] ?: return
+
+		listeners.forEach { listener ->
+			if (!eventRemovedFromQueue) eventRemovedFromQueue = queue.remove(event)
+
+			GlobalScope.launch(Dispatchers.Default) {
+				val result = listener()
+				if (result != null) call(result)
+				return@launch
 			}
-
 		}
+
 	}
 
 	/**
@@ -79,14 +84,13 @@ class EventListener {
 	 * @return True if the event is in the queue, false otherwise
 	 */
 	fun isInQueue(event: String): Boolean {
-		synchronized(queue) {
-			return queue.remove(event)
-		}
+		val queue = this.queue.get()
+		return queue.remove(event)
+
 	}
 
 	fun getQueueString(): String {
-		synchronized(queue) {
-			return queue.toString()
-		}
+		val queue = this.queue.get()
+		return queue.toString()
 	}
 }
