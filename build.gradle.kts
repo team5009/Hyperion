@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.ir.backend.js.compile
 //import com.nishtahir.CargoBuildTask
 //import com.nishtahir.CargoExtension
 
-val ftcVersion = "10.3.0"
+val ftcVersion = "11.0.0"
 
 plugins {
 	id("com.android.library")
