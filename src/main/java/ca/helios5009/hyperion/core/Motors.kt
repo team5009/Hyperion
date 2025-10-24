@@ -50,16 +50,16 @@ class Motors(
 	 * @see gamepadMove for gamepad controls.
 	 */
 	fun move(drive: Double, strafe: Double, rotate: Double) {   
-		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
-		val powRatio = powerRatio.get()
-		val max = maxOf(powRatio, maxPower)
+		val highestPower = abs(drive) + abs(strafe) + abs(rotate)
+		val powerRatioCalc = maxOf(highestPower, 1.0)
+
 		listOf(
 			drive + strafe + rotate,
 			drive - strafe - rotate,
 			drive - strafe + rotate,
 			drive + strafe - rotate
 		).forEachIndexed { index, power ->
-			motorList[index].setPowerWithTol(power / max)
+			motorList[index].setPowerWithTol(power / powerRatioCalc * powerRatio.get()) // To apply the power ratio
 		}
 	}
 
@@ -68,9 +68,10 @@ class Motors(
 	 * @param ratio The ratio of the power of the motors.
 	 */
 	fun setPowerRatio(ratio: Double) {
-		if (ratio <= 0 || ratio > 1) throw IllegalArgumentException("Power ratio must be between 0 and 1")
+		if (ratio <= 0 || ratio > 1) throw IllegalArgumentException("Max Power must be between 0 and 1")
 		powerRatio.set(ratio)
 	}
+
 
 	/**
 	 * Given a gamepad, move the robot.
@@ -81,9 +82,8 @@ class Motors(
 	 * @see move for non-gamepad controls.
 	 */
 	fun gamepadMove(drive: Double, strafe: Double, rotate: Double) {
-		val maxPower = abs(drive) + abs(strafe) + abs(rotate)
-		val powRatio = powerRatio.get()
-		val max = maxOf(powRatio, maxPower)
+		val highestPower = abs(drive) + abs(strafe) + abs(rotate)
+		val powerRatioCalc = maxOf(highestPower, 1.0)
 
 		listOf(
 			drive + strafe + rotate,
@@ -91,7 +91,7 @@ class Motors(
 			drive - strafe + rotate,
 			drive + strafe - rotate
 		).forEachIndexed { index, power ->
-			motorList[index].power = power / max
+			motorList[index].power = power / powerRatioCalc * powerRatio.get() // To apply the power ratio
 		}
 	}
 
