@@ -1,6 +1,7 @@
 package ca.helios5009.hyperion.misc
 
 import ca.helios5009.hyperion.pathing.Point
+import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -64,3 +65,29 @@ fun cosineLaw(a: Double, b: Double, c: Double): Double {
 	}
 	return acos(((a * a) + (b * b) - (c * c)) / (2 * a * b))
 }
+
+/**
+ * Various math utilities.
+ */
+object MathUtil {
+
+	/**
+	 * Returns the real solutions to the quadratic ax^2 + bx + c.
+	 */
+	@JvmStatic
+	fun solveQuadratic(a: Double, b: Double, c: Double): List<Double> {
+		val disc = b * b - 4 * a * c
+		return when {
+			disc epsilonEquals 0.0 -> listOf(-b / (2 * a))
+			disc > 0.0 -> listOf(
+				(-b + sqrt(disc)) / (2 * a),
+				(-b - sqrt(disc)) / (2 * a)
+			)
+			else -> emptyList()
+		}
+	}
+}
+
+const val EPSILON = 1e-6
+
+infix fun Double.epsilonEquals(other: Double) = abs(this - other) < EPSILON

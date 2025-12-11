@@ -1,8 +1,10 @@
 package ca.helios5009.hyperion.core
 
+import ca.helios5009.hyperion.misc.epsilonEquals
 import org.firstinspires.ftc.robotcore.external.Telemetry
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.sign
 
 /**
  * A PIDF controller class that can be used to control a system.
@@ -14,12 +16,15 @@ import kotlin.math.min
  *
  */
 class PIDFController(
-	var kP: Double,
-	var kI: Double,
-	var kD: Double,
-	var kF: Double
+	private val pid: PIDCoefficients,
+	private val kV: Double = 0.0,
+	private val kA: Double = 0.0,
+	private val kF: (Double, Double?) -> Double = { _, _ -> 0.0 },
+	private val kStatic: Double = 0.0,
 ) {
 	var targetPoint: Double = 0.0;
+	var targetVelocity: Double = 0.0;
+	var targetAcceleration: Double = 0.0;
 
 	private var measuredValue: Double = 0.0;
 	private var minIntegral: Double = -1.0;
@@ -62,7 +67,7 @@ class PIDFController(
 	/**
 	 * Returns the coefficients of the controller.
 	 */
-	val coefficients get() = listOf(kP, kI, kD, kF);
+	val coefficients get() = pid;
 
 	fun reset() {
 		totalError = 0.0;
@@ -105,6 +110,12 @@ class PIDFController(
 		return error;
 	}
 
+
+	private fun getPositionError(measuredPoint: Double) : Double {
+		return if (circular) {
+			angleWrap(targetPoint - measuredPoint)
+		} else {targetPoint - measuredPoint}
+	}
 	/**
 	 * Calculates the control value, u(t).
 	 *
@@ -115,18 +126,17 @@ class PIDFController(
 		if (!measuredValue.equals(pv)) {
 			measuredValue = pv;
 		}
-		return directCalculate(targetPoint - measuredValue) + kF * targetPoint;
+		return directCalculate(targetPoint - measuredValue)
 	}
 
-	fun directCalculate(error: Double, t:Telemetry? = null): Double {
-
+	fun directCalculate(measuredPoint: Double, measuredVelocity: Double? = null, t:Telemetry? = null): Double {
 		prevPositionError = positionError;
-		val currentTime : Double = (System.nanoTime() / 1e9).toDouble();
-		if (lastTime.equals(0.0)) lastTime = currentTime;
+		val currentTime : Double = (System.nanoTime() / 1e9)
+		if (lastTime.equals(0.0)) lastTime = currentTime
 
-		period = currentTime - lastTime;
-		lastTime = currentTime;
-		positionError = if (circular) {angleWrap(error)} else {error};
+		period = currentTime - lastTime
+		lastTime = currentTime
+		positionError = getPositionError(measuredPoint)
 		if (t != null){
 			t.addData("break point 1", positionError)
 			t.addData("break point 2", lastTime)
@@ -137,7 +147,7 @@ class PIDFController(
 			0.0;
 		}
 
-		totalError += period * (error);
+		totalError += period * (measuredPoint);
 		totalError = if (totalError < minIntegral) {
 			minIntegral
 		} else {
@@ -145,9 +155,13 @@ class PIDFController(
 		}
 		if (t != null){
 			t.addData("break point 3", totalError)
-			t.addData("break point 4", error)
+			t.addData("break point 4", measuredPoint)
 		}
-		return kP * positionError + kI * totalError + kD * velocityError
+		val baseOutput = pid.kP * positionError + pid.kI * totalError +
+			pid.kD * (measuredVelocity?.let { targetVelocity - it } ?: velocityError) +
+			kV * targetVelocity + kA * targetAcceleration + kF(targetPoint, measuredValue)
+
+		return if (baseOutput epsilonEquals 0.0) 0.0 else baseOutput + sign(baseOutput) * kStatic
 	}
 
 	/**
@@ -172,43 +186,5 @@ class PIDFController(
 	 */
 	fun calculate() = calculate(measuredValue);
 
-	fun setPIDF(kP: Double, kI: Double, kD: Double, kF: Double) {
-		this.kP = kP;
-		this.kI = kI;
-		this.kD = kD;
-		this.kF = kF;
-	}
-
-	fun setPID(kP: Double, kI: Double, kD: Double): PIDFController  {
-		this.kP = kP;
-		this.kI = kI;
-		this.kD = kD;
-		return this;
-	}
-
-	fun setP(kP: Double): PIDFController {
-		this.kP = kP;
-		return this;
-	}
-
-	fun setI(kI: Double): PIDFController {
-		this.kI = kI;
-		return this;
-	}
-
-	fun setD(kD: Double): PIDFController {
-		this.kD = kD;
-		return this;
-	}
-
-	fun setF(kF: Double): PIDFController {
-		this.kF = kF;
-		return this;
-	}
-
 	fun getPeriod() = period;
-
-
-
-
 }

@@ -2,6 +2,7 @@ package ca.helios5009.hyperion.pathing
 
 import ca.helios5009.hyperion.core.Motors
 import ca.helios5009.hyperion.core.Movement
+import ca.helios5009.hyperion.core.PIDCoefficients
 import ca.helios5009.hyperion.core.PIDFController
 //import ca.helios5009.hyperion.hardware.Deadwheels
 import ca.helios5009.hyperion.misc.Odometry
@@ -84,6 +85,10 @@ class PathBuilder<T: Odometry>(
 	var state = PathState.ENDED
 		private set
 	private val holdingPosition = AtomicReference(Point(0.0, 0.0).setRad(0.0))
+
+	val xController get() = movement.xPIDFController
+	val yController get() = movement.yPIDFController
+	val rotController get() = movement.rotController
 
 	init {
 		movement.tracking = tracking
@@ -217,7 +222,7 @@ class PathBuilder<T: Odometry>(
 
 		while(opMode.opModeIsActive()) {
 			val tempHold = holdingPosition.get()
-			movement.rotateController.setTarget(tempHold.rot)
+			movement.setTargetControllers(tempHold)
 			movement.goto(tempHold, true)
 			if (debug) {
 				opMode.telemetry.addLine("Waiting for Autonomous to end")
@@ -246,7 +251,7 @@ class PathBuilder<T: Odometry>(
 
 		while(opMode.opModeIsActive() && timer.milliseconds() < time) {
 			val tempHold = holdingPosition.get()
-			movement.rotateController.setTarget(tempHold.rot)
+			movement.setTargetControllers(tempHold)
 			movement.goto(tempHold, true)
 			if (debug) {
 				opMode.telemetry.addLine("Waiting for ${time}ms")
@@ -278,7 +283,7 @@ class PathBuilder<T: Odometry>(
 
 		while (opMode.opModeIsActive()) {
 			val tempHold = holdingPosition.get()
-			movement.rotateController.setTarget(tempHold.rot)
+			movement.rotController.setTarget(tempHold.rot)
 			movement.goto(tempHold, true)
 
 			if (isTemp) {
@@ -297,20 +302,16 @@ class PathBuilder<T: Odometry>(
 		return this
 	}
 
-	fun moveHoldPosition(point: Point) {
-		val tempPosition = holdingPosition.get()
-		tempPosition.x += point.x
-		tempPosition.y += point.y
-		tempPosition.setRad(tempPosition.rot + point.rot)
-		movement.segment.setLastKnownPosition(tempPosition)
+	/**
+	 * Move the holding position relative to the current holding position.
+	 * @param relativePoint The point to move relative to the current holding position.
+	 */
+	fun moveHoldPosition(relativePoint: Point) {
+		setHoldingPosition(holdingPosition.get().clone() + relativePoint)
 	}
 
 	fun setHoldingPosition(point: Point) {
-		val tempPosition = holdingPosition.get()
-		tempPosition.x = point.x
-		tempPosition.y = point.y
-		tempPosition.setRad(point.rot)
-		movement.segment.setLastKnownPosition(tempPosition)
+		movement.segment.setLastKnownPosition(point)
 	}
 
 	/**
@@ -327,37 +328,11 @@ class PathBuilder<T: Odometry>(
 		movement.minimumVectorTolerance = tolerance
 		return this
 	}
-	
-	/**
-	 * Set constants for the Drive PID controller
-	 * @see PIDFController
-	 */
-	fun setDriveConstants(kP: Double, kI: Double, kD: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
-		movement.driveController = PIDFController(kP, kI, kD,0.0)
-		movement.driveController.setTolerance(posTolerance, velTolerance)
+
+	fun setControllers(xPID: PIDCoefficients, yPID: PIDCoefficients, rotPID: PIDCoefficients): PathBuilder<T> {
+		movement.xPIDFController = PIDFController(xPID)
+		movement.yPIDFController = PIDFController(yPID)
+		movement.rotController = PIDFController(rotPID)
 		return this
 	}
-
-	/**
-	 * Set constants for the Strafe PID controller
-	 * @see PIDFController
-	 */
-	fun setStrafeConstants(kP: Double, kI: Double, kD: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
-		movement.strafeController = PIDFController(kP, kI, kD, 0.0)
-		movement.strafeController.setTolerance(posTolerance, velTolerance)
-		return this
-	}
-
-	/**
-	 * Set constants for the Rotation PID controller
-	 *
-	 * @see PIDFController
-	 */
-	fun setRotateConstants(kP: Double, kI: Double, kD: Double, kF: Double, posTolerance: Double, velTolerance: Double): PathBuilder<T> {
-		movement.rotateController = PIDFController(kP, kI, kD, kF)
-		movement.rotateController.setTolerance(posTolerance, velTolerance)
-		movement.rotateController.setAngleWrapAround()
-		return this
-	}
-
 }
